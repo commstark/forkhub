@@ -9,12 +9,12 @@ export default withAuth({
 export const config = {
   matcher: [
     /*
-     * Protect all routes except:
-     * - /login
-     * - /api/auth (NextAuth endpoints)
-     * - /_next (Next.js internals)
-     * - /favicon.ico, static files
+     * Protect page routes only. API routes handle their own auth via
+     * getServerSession so middleware redirects don't interfere with
+     * JSON clients (curl, mobile apps, etc.)
+     *
+     * Excludes: /login, /api/*, /_next/*, /favicon.ico
      */
-    "/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|api|_next/static|_next/image|favicon.ico).*)",
   ],
 }
