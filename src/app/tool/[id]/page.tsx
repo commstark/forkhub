@@ -109,23 +109,49 @@ function Stars({ score }: { score: number }) {
 
 // ─── Preview Components ───────────────────────────────────────────────────────
 
-function HtmlPreview({ url }: { url: string }) {
+// HTML — ClawStore pattern: outer iframe → /preview/[id] server route → srcdoc inner iframe
+// Expand/collapse with green dot toggle
+function HtmlPreview({ toolId, expanded, onToggle }: { toolId: string; expanded: boolean; onToggle: () => void }) {
   return (
-    <iframe
-      src={url}
-      sandbox="allow-scripts"
-      className="w-full h-96 border border-gray-200 rounded-lg bg-white"
-      title="HTML preview"
-    />
+    <div
+      style={expanded ? {
+        position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 9999, background: "#fff", padding: 24, margin: 0,
+      } : {}}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#999" }}>
+          Live preview
+        </span>
+        <div
+          onClick={onToggle}
+          style={{ width: 12, height: 12, borderRadius: "50%", background: "#28CA41", cursor: "pointer", flexShrink: 0 }}
+          title={expanded ? "Minimize" : "Expand fullscreen"}
+        />
+      </div>
+      <iframe
+        src={`/preview/${toolId}`}
+        style={{
+          width: "100%",
+          height: expanded ? "calc(100vh - 80px)" : 400,
+          border: "none",
+          borderRadius: 8,
+          display: "block",
+          background: "#fafafa",
+        }}
+        sandbox="allow-scripts allow-same-origin"
+        title="Tool preview"
+      />
+    </div>
   )
 }
 
-function MarkdownPreview({ url }: { url: string }) {
+function MarkdownPreview({ toolId }: { toolId: string }) {
   const [html, setHtml] = useState<string | null>(null)
   useEffect(() => {
-    fetch(url).then((r) => r.text()).then((text) => setHtml(marked(text) as string))
-  }, [url])
-  if (!html) return <div className="text-gray-400 text-sm">Loading…</div>
+    fetch(`/api/tools/${toolId}/file`).then((r) => r.text()).then((text) => setHtml(marked(text) as string))
+  }, [toolId])
+  if (!html) return <div className="text-gray-400 text-sm p-4">Loading…</div>
   return (
     <div
       className="prose prose-sm max-w-none border border-gray-200 rounded-lg p-6 bg-white"
@@ -134,17 +160,17 @@ function MarkdownPreview({ url }: { url: string }) {
   )
 }
 
-function CsvPreview({ url, separator }: { url: string; separator: string }) {
+function CsvPreview({ toolId, separator }: { toolId: string; separator: string }) {
   const [rows, setRows] = useState<string[][] | null>(null)
   useEffect(() => {
-    fetch(url)
+    fetch(`/api/tools/${toolId}/file`)
       .then((r) => r.text())
       .then((text) => {
         const lines = text.split("\n").filter(Boolean).slice(0, 101)
         setRows(lines.map((l) => l.split(separator)))
       })
-  }, [url, separator])
-  if (!rows) return <div className="text-gray-400 text-sm">Loading…</div>
+  }, [toolId, separator])
+  if (!rows) return <div className="text-gray-400 text-sm p-4">Loading…</div>
   const headers = rows[0]
   const body = rows.slice(1, 101)
   return (
@@ -166,37 +192,29 @@ function CsvPreview({ url, separator }: { url: string; separator: string }) {
   )
 }
 
-function CodePreview({ url, fileName }: { url: string; fileName: string }) {
+function CodePreview({ toolId, fileName }: { toolId: string; fileName: string }) {
   const [code, setCode] = useState<string | null>(null)
   const codeRef = useRef<HTMLElement>(null)
-
   useEffect(() => {
-    fetch(url).then((r) => r.text()).then(setCode)
-  }, [url])
-
+    fetch(`/api/tools/${toolId}/file`).then((r) => r.text()).then(setCode)
+  }, [toolId])
   useEffect(() => {
-    if (code && codeRef.current) {
-      hljs.highlightElement(codeRef.current)
-    }
+    if (code && codeRef.current) hljs.highlightElement(codeRef.current)
   }, [code])
-
   const ext = fileName.split(".").pop() ?? "plaintext"
-
-  if (!code) return <div className="text-gray-400 text-sm">Loading…</div>
+  if (!code) return <div className="text-gray-400 text-sm p-4">Loading…</div>
   return (
     <div className="border border-gray-200 rounded-lg overflow-auto max-h-96">
-      <pre className="m-0">
-        <code ref={codeRef} className={`language-${ext}`}>{code}</code>
-      </pre>
+      <pre className="m-0"><code ref={codeRef} className={`language-${ext}`}>{code}</code></pre>
     </div>
   )
 }
 
-function ImagePreview({ url, fileName }: { url: string; fileName: string }) {
+function ImagePreview({ toolId, fileName }: { toolId: string; fileName: string }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white flex items-center justify-center">
+    <div className="border border-gray-200 rounded-lg p-4 bg-white flex items-center justify-center min-h-48">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={fileName} className="max-h-96 max-w-full object-contain" />
+      <img src={`/api/tools/${toolId}/file`} alt={fileName} className="max-h-96 max-w-full object-contain" />
     </div>
   )
 }
@@ -213,15 +231,15 @@ function OtherPreview({ fileName, fileSize, fileType }: { fileName: string; file
   )
 }
 
-function Preview({ tool }: { tool: Tool }) {
+function Preview({ tool, expanded, onToggle }: { tool: Tool; expanded: boolean; onToggle: () => void }) {
   const kind = getPreviewKind(tool.file_type, tool.file_name)
   switch (kind) {
-    case "html":     return <HtmlPreview url={tool.file_url} />
-    case "markdown": return <MarkdownPreview url={tool.file_url} />
-    case "csv":      return <CsvPreview url={tool.file_url} separator="," />
-    case "tsv":      return <CsvPreview url={tool.file_url} separator="\t" />
-    case "image":    return <ImagePreview url={tool.file_url} fileName={tool.file_name} />
-    case "code":     return <CodePreview url={tool.file_url} fileName={tool.file_name} />
+    case "html":     return <HtmlPreview toolId={tool.id} expanded={expanded} onToggle={onToggle} />
+    case "markdown": return <MarkdownPreview toolId={tool.id} />
+    case "csv":      return <CsvPreview toolId={tool.id} separator="," />
+    case "tsv":      return <CsvPreview toolId={tool.id} separator="\t" />
+    case "image":    return <ImagePreview toolId={tool.id} fileName={tool.file_name} />
+    case "code":     return <CodePreview toolId={tool.id} fileName={tool.file_name} />
     default:         return <OtherPreview fileName={tool.file_name} fileSize={tool.file_size} fileType={tool.file_type} />
   }
 }
@@ -230,20 +248,14 @@ function Preview({ tool }: { tool: Tool }) {
 
 function CopyButton({ tool }: { tool: Tool }) {
   const [copied, setCopied] = useState(false)
-
   function handleCopy() {
     navigator.clipboard.writeText(`ForkHub tool: ${tool.title} (ID: ${tool.id})`)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
-
   return (
     <div className="relative inline-flex items-center">
-      <button
-        onClick={handleCopy}
-        className="text-gray-400 hover:text-gray-600 transition p-1 rounded"
-        title="Copy tool reference"
-      >
+      <button onClick={handleCopy} className="text-gray-400 hover:text-gray-600 transition p-1 rounded" title="Copy tool reference">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
@@ -266,6 +278,7 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
   const [parent, setParent] = useState<Tool | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [previewExpanded, setPreviewExpanded] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -273,18 +286,15 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
       if (!toolRes.ok) { setNotFound(true); setLoading(false); return }
       const toolData: Tool = await toolRes.json()
       setTool(toolData)
-
-      // Parallel: ratings, forks, parent (if any)
-      const [ratingsRes, forksRes, parentData] = await Promise.all([
+      const [ratingsData, forksData, parentData] = await Promise.all([
         fetch(`/api/tools/${params.id}/ratings`).then((r) => r.json()),
         fetch(`/api/tools/${params.id}/forks`).then((r) => r.json()),
         toolData.parent_tool_id
           ? fetch(`/api/tools/${toolData.parent_tool_id}`).then((r) => r.ok ? r.json() : null)
           : Promise.resolve(null),
       ])
-
-      setRatings(ratingsRes)
-      setForks(forksRes)
+      setRatings(ratingsData)
+      setForks(forksData)
       setParent(parentData)
       setLoading(false)
     }
@@ -297,7 +307,6 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
   return (
     <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
 
-      {/* Back */}
       <Link href="/" className="text-sm text-gray-400 hover:text-gray-700">← Browse</Link>
 
       {/* ── Header ── */}
@@ -309,7 +318,6 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
           </h1>
           <CopyButton tool={tool} />
         </div>
-
         <div className="flex flex-wrap items-center gap-3 text-sm mb-3">
           <span className="text-gray-500">
             by{" "}
@@ -327,7 +335,6 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{tool.file_type}</span>
           )}
         </div>
-
         <div className="flex items-center gap-4 text-sm text-gray-500">
           {tool.rating_count > 0 ? (
             <span className="flex items-center gap-1">
@@ -341,7 +348,6 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
           <span className="text-gray-300">·</span>
           <span>{new Date(tool.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
         </div>
-
         {tool.description && (
           <p className="mt-3 text-gray-600 text-sm leading-relaxed">{tool.description}</p>
         )}
@@ -350,7 +356,11 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
       {/* ── Preview ── */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Preview</h2>
-        <Preview tool={tool} />
+        <Preview
+          tool={tool}
+          expanded={previewExpanded}
+          onToggle={() => setPreviewExpanded((v) => !v)}
+        />
       </section>
 
       {/* ── Version chain ── */}
@@ -386,7 +396,7 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
       {/* ── Ratings ── */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Ratings {tool.rating_count > 0 && <span className="normal-case font-normal text-gray-400">— {Number(tool.rating_avg).toFixed(1)} avg from {tool.rating_count}</span>}
+          Ratings{tool.rating_count > 0 && <span className="normal-case font-normal text-gray-400"> — {Number(tool.rating_avg).toFixed(1)} avg from {tool.rating_count}</span>}
         </h2>
         {ratings.length === 0 ? (
           <p className="text-sm text-gray-400">No ratings yet. Rate via POST /api/tools/{tool.id}/rate</p>
