@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 type Tool = {
   id: string
@@ -12,6 +13,9 @@ type Tool = {
   file_type: string
   file_name: string
   file_size: number
+  version_number: number
+  rating_avg: number
+  rating_count: number
   created_at: string
 }
 
@@ -34,6 +38,16 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function RatingDisplay({ avg, count }: { avg: number; count: number }) {
+  if (count === 0) return <span className="text-gray-400">No ratings yet</span>
+  return (
+    <span>
+      ★ {Number(avg).toFixed(1)}{" "}
+      <span className="text-gray-400">({count} {count === 1 ? "rating" : "ratings"})</span>
+    </span>
+  )
+}
+
 export default function MyUploads() {
   const [tools, setTools] = useState<Tool[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,16 +65,27 @@ export default function MyUploads() {
 
   return (
     <main className="max-w-4xl mx-auto p-8">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">My Uploads</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">My Uploads</h1>
+        <Link href="/" className="text-sm text-gray-500 hover:text-gray-900">← Browse</Link>
+      </div>
+
       {tools.length === 0 ? (
         <p className="text-gray-500">No uploads yet.</p>
       ) : (
         <div className="space-y-3">
           {tools.map((tool) => (
-            <div key={tool.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+            <Link
+              key={tool.id}
+              href={`/tool/${tool.id}`}
+              className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="font-medium text-gray-900">{tool.title}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-medium text-gray-900">{tool.title}</h2>
+                    <span className="text-xs text-gray-400">V{tool.version_number ?? 1}</span>
+                  </div>
                   <p className="text-sm text-gray-500 mt-0.5 truncate">{tool.description}</p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
@@ -72,13 +97,16 @@ export default function MyUploads() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-4 mt-3 text-xs text-gray-400">
-                <span>{tool.file_name}</span>
-                <span>{tool.file_type || "unknown type"}</span>
-                <span>{formatBytes(tool.file_size)}</span>
-                <span>{new Date(tool.created_at).toLocaleDateString()}</span>
+              <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
+                <div className="flex gap-4">
+                  <span>{tool.file_name}</span>
+                  <span>{tool.file_type || "unknown type"}</span>
+                  <span>{formatBytes(tool.file_size)}</span>
+                  <span>{new Date(tool.created_at).toLocaleDateString()}</span>
+                </div>
+                <RatingDisplay avg={tool.rating_avg} count={tool.rating_count} />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

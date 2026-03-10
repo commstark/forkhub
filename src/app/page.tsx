@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 type Creator = { name: string; avatar_url: string | null }
@@ -15,6 +15,7 @@ type Tool = {
   fork_count: number
   rating_avg: number
   rating_count: number
+  version_number: number
   created_at: string
   creator: Creator | null
 }
@@ -38,19 +39,32 @@ const CLASSIFICATION_STYLES: Record<string, string> = {
   external_customer: "bg-orange-100 text-orange-700",
 }
 
+function RatingDisplay({ avg, count }: { avg: number; count: number }) {
+  if (count === 0) return <span className="text-gray-400">No ratings yet</span>
+  return (
+    <span className="text-gray-500">
+      ★ {Number(avg).toFixed(1)}{" "}
+      <span className="text-gray-400">({count} {count === 1 ? "rating" : "ratings"})</span>
+    </span>
+  )
+}
+
 function ToolCard({ tool }: { tool: Tool }) {
   return (
     <Link href={`/tool/${tool.id}`} className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition">
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-1">
         <h2 className="font-medium text-gray-900 leading-snug">{tool.title}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${CLASSIFICATION_STYLES[tool.classification] ?? "bg-gray-100 text-gray-600"}`}>
-          {tool.classification.replace(/_/g, " ")}
+        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
+          V{tool.version_number ?? 1}
         </span>
       </div>
 
       <p className="text-sm text-gray-500 line-clamp-2 mb-3">{tool.description}</p>
 
       <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CLASSIFICATION_STYLES[tool.classification] ?? "bg-gray-100 text-gray-600"}`}>
+          {tool.classification.replace(/_/g, " ")}
+        </span>
         {tool.category && (
           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
             {tool.category}
@@ -63,14 +77,12 @@ function ToolCard({ tool }: { tool: Tool }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        <span>{tool.creator?.name ?? "Unknown"}</span>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-gray-400">{tool.creator?.name ?? "Unknown"}</span>
         <div className="flex items-center gap-3">
-          {tool.rating_count > 0 && (
-            <span>★ {Number(tool.rating_avg).toFixed(1)} ({tool.rating_count})</span>
-          )}
+          <RatingDisplay avg={tool.rating_avg} count={tool.rating_count} />
           {tool.fork_count > 0 && (
-            <span>⑂ {tool.fork_count}</span>
+            <span className="text-gray-400">⑂ {tool.fork_count}</span>
           )}
         </div>
       </div>
@@ -84,8 +96,8 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [fileTypes, setFileTypes] = useState<string[]>([])
-
   const [searchInput, setSearchInput] = useState("")
+
   const [filters, setFilters] = useState({
     q: "",
     category: "",
@@ -94,8 +106,15 @@ export default function BrowsePage() {
     sort: "newest",
   })
 
-  const searchRef = useRef<HTMLInputElement>(null)
+  // Debounce search input → filters.q
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((f) => ({ ...f, q: searchInput }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
+  // Fetch when filters change
   useEffect(() => {
     const params = new URLSearchParams()
     if (filters.q) params.set("q", filters.q)
@@ -109,24 +128,16 @@ export default function BrowsePage() {
       .then((r) => r.json())
       .then((data: Tool[]) => {
         setTools(data)
-        // Derive filter options from results when no filter is active
         if (!filters.category) {
-          const cats = Array.from(new Set(data.map((t) => t.category).filter(Boolean)))
-          setCategories(cats)
+          setCategories(Array.from(new Set(data.map((t) => t.category).filter(Boolean))))
         }
         if (!filters.file_type) {
-          const types = Array.from(new Set(data.map((t) => t.file_type).filter(Boolean)))
-          setFileTypes(types)
+          setFileTypes(Array.from(new Set(data.map((t) => t.file_type).filter(Boolean))))
         }
         setLoading(false)
       })
       .catch(() => { setError("Failed to load tools"); setLoading(false) })
   }, [filters])
-
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setFilters((f) => ({ ...f, q: searchInput }))
-  }
 
   function setFilter(key: keyof typeof filters, value: string) {
     setFilters((f) => ({ ...f, [key]: value }))
@@ -141,17 +152,14 @@ export default function BrowsePage() {
         </Link>
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearchSubmit} className="mb-4">
-        <input
-          ref={searchRef}
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search tools… (press Enter)"
-          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-        />
-      </form>
+      {/* Search — live with debounce */}
+      <input
+        type="text"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        placeholder="Search tools…"
+        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 mb-4"
+      />
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap mb-6">
@@ -190,7 +198,6 @@ export default function BrowsePage() {
         </select>
       </div>
 
-      {/* Results */}
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
       {loading ? (
