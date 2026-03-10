@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { supabaseServer } from "@/lib/supabase-server"
+import { writeAuditLog } from "@/lib/audit"
 import { randomUUID } from "crypto"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
@@ -88,6 +89,15 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create review row:", reviewError.message)
     }
   }
+
+  await writeAuditLog({
+    orgId,
+    userId,
+    action: "tool.created",
+    targetType: "tool",
+    targetId: toolId,
+    metadata: { title, classification, status },
+  })
 
   return NextResponse.json(tool, { status: 201 })
 }
