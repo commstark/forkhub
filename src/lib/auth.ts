@@ -1,6 +1,7 @@
+import "server-only"
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
-import { supabaseServer } from "@/lib/supabase"
+import { supabaseServer } from "@/lib/supabase-server"
 
 export const authOptions: NextAuthOptions = {
   providers: [
