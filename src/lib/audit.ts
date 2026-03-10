@@ -7,6 +7,7 @@ type AuditAction =
   | "tool.approved"
   | "tool.rejected"
   | "tool.forked"
+  | "tool.rated"
   | "user.role_changed"
   | "review.completed"
 
