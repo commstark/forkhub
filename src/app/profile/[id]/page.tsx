@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,19 +60,53 @@ const STATUS_STYLES: Record<string, string> = {
   draft:     "bg-gray-100 text-gray-600",
 }
 
-function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
-  const initials = name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()
-  if (avatarUrl) {
-    return (
-      <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-      </div>
-    )
-  }
+function DefaultAvatar() {
   return (
-    <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-600">
-      {initials}
+    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+      <svg viewBox="0 0 16 16" className="w-10 h-10 text-gray-400" fill="currentColor">
+        <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+      </svg>
+    </div>
+  )
+}
+
+function Avatar({
+  avatarUrl, isOwn, onUpload,
+}: {
+  avatarUrl: string | null
+  isOwn: boolean
+  onUpload: (file: File) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) onUpload(file)
+  }
+
+  return (
+    <div
+      className={`relative w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 ${isOwn ? "cursor-pointer group" : ""}`}
+      onClick={() => isOwn && inputRef.current?.click()}
+      title={isOwn ? "Click to change avatar" : undefined}
+    >
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <DefaultAvatar />
+      )}
+      {isOwn && (
+        <>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleChange} />
+        </>
+      )}
     </div>
   )
 }
@@ -170,12 +205,25 @@ function InReviewCard({ tool }: { tool: Tool }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage({ params }: { params: { id: string } }) {
+  const { data: session }         = useSession()
+  const isOwn                     = session?.user.id === params.id
   const [profile, setProfile]     = useState<UserProfile | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [originals, setOriginals] = useState<Tool[]>([])
   const [forks, setForks]         = useState<Tool[]>([])
   const [inReview, setInReview]   = useState<Tool[]>([])
   const [loading, setLoading]     = useState(true)
   const [notFound, setNotFound]   = useState(false)
+
+  async function handleAvatarUpload(file: File) {
+    const fd = new FormData()
+    fd.append("file", file)
+    const res = await fetch(`/api/users/${params.id}/avatar`, { method: "POST", body: fd })
+    if (res.ok) {
+      const { avatar_url } = await res.json()
+      setAvatarUrl(avatar_url)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -183,6 +231,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       if (!profileRes.ok) { setNotFound(true); setLoading(false); return }
       const profileData: UserProfile = await profileRes.json()
       setProfile(profileData)
+      setAvatarUrl(profileData.avatar_url)
 
       const uploadsData = await fetch(`/api/users/${params.id}/tools`).then((r) => r.json())
       const tools: Tool[] = Array.isArray(uploadsData) ? uploadsData : []
@@ -205,7 +254,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
       {/* ── Profile header ── */}
       <section className="flex items-start gap-5">
-        <Avatar name={profile.name} avatarUrl={profile.avatar_url} />
+        <Avatar avatarUrl={avatarUrl} isOwn={isOwn} onUpload={handleAvatarUpload} />
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-2xl font-semibold text-gray-900">{profile.name}</h1>
@@ -225,7 +274,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       {/* ── Stats row ── */}
       <section className="border border-gray-200 rounded-lg p-6">
         <div className="grid grid-cols-4 gap-6 divide-x divide-gray-200">
-          <StatBox label="Tools created"    value={originals.length}                   href="#tools" />
+          <StatBox label="V1's Contributed"  value={originals.length}                   href="#tools" />
           <StatBox label="Forks made"       value={forks.length}                        href="#forks" />
           <StatBox label="In review"        value={inReview.length}                     href="#review" />
           <StatBox
