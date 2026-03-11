@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   // No query — standard filtered query
   let query = supabaseServer
     .from("tools")
-    .select("*, creator:users!creator_id(name, avatar_url)")
+    .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, created_at, creator:users!creator_id(name, avatar_url)")
     .eq("org_id", session.user.orgId)
     .eq("status", status)
 
@@ -68,5 +68,26 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json(data)
+  // Look up parent info for forked tools (single extra query, not N+1)
+  const parentIds = (data ?? [])
+    .map((t: { parent_tool_id: string | null }) => t.parent_tool_id)
+    .filter((id): id is string => !!id)
+
+  const parentMap = new Map<string, { id: string; version_number: number; creator: { name: string } | null }>()
+  if (parentIds.length > 0) {
+    const { data: parents } = await supabaseServer
+      .from("tools")
+      .select("id, version_number, creator:users!creator_id(name)")
+      .in("id", parentIds)
+    for (const p of parents ?? []) {
+      parentMap.set(p.id, p as unknown as { id: string; version_number: number; creator: { name: string } | null })
+    }
+  }
+
+  const enriched = (data ?? []).map((t: { parent_tool_id: string | null }) => ({
+    ...t,
+    parent: (t.parent_tool_id ? parentMap.get(t.parent_tool_id) : null) ?? null,
+  }))
+
+  return NextResponse.json(enriched)
 }

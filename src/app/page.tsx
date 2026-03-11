@@ -5,6 +5,8 @@ import Link from "next/link"
 
 type Creator = { name: string; avatar_url: string | null }
 
+type ParentInfo = { id: string; version_number: number; creator: { name: string } | null } | null
+
 type Tool = {
   id: string
   title: string
@@ -16,6 +18,8 @@ type Tool = {
   rating_avg: number
   rating_count: number
   version_number: number
+  parent_tool_id: string | null
+  parent: ParentInfo
   created_at: string
   creator: Creator | null
 }
@@ -54,9 +58,14 @@ function ToolCard({ tool }: { tool: Tool }) {
     <Link href={`/tool/${tool.id}`} className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition">
       <div className="flex items-start justify-between gap-2 mb-1">
         <h2 className="font-medium text-gray-900 leading-snug">{tool.title}</h2>
-        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
-          V{tool.version_number ?? 1}
-        </span>
+        <div className="flex flex-col items-end flex-shrink-0">
+          <span className="text-xs text-gray-400">V{tool.version_number ?? 1}</span>
+          {tool.parent && (
+            <span className="text-xs text-gray-400">
+              from V{tool.parent.version_number ?? 1} by {tool.parent.creator?.name ?? "Unknown"}
+            </span>
+          )}
+        </div>
       </div>
 
       <p className="text-sm text-gray-500 line-clamp-2 mb-3">{tool.description}</p>

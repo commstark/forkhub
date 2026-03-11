@@ -70,6 +70,13 @@ type Fork = {
   creator: { name: string } | null
 }
 
+type LineageNode = {
+  id: string
+  title: string
+  version_number: number
+  creator: { name: string } | null
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const CLASSIFICATION_STYLES: Record<string, string> = {
@@ -275,7 +282,7 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
   const [tool, setTool] = useState<Tool | null>(null)
   const [ratings, setRatings] = useState<Rating[]>([])
   const [forks, setForks] = useState<Fork[]>([])
-  const [parent, setParent] = useState<Tool | null>(null)
+  const [lineage, setLineage] = useState<LineageNode[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [previewExpanded, setPreviewExpanded] = useState(false)
@@ -286,16 +293,14 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
       if (!toolRes.ok) { setNotFound(true); setLoading(false); return }
       const toolData: Tool = await toolRes.json()
       setTool(toolData)
-      const [ratingsData, forksData, parentData] = await Promise.all([
+      const [ratingsData, forksData, lineageData] = await Promise.all([
         fetch(`/api/tools/${params.id}/ratings`).then((r) => r.json()),
         fetch(`/api/tools/${params.id}/forks`).then((r) => r.json()),
-        toolData.parent_tool_id
-          ? fetch(`/api/tools/${toolData.parent_tool_id}`).then((r) => r.ok ? r.json() : null)
-          : Promise.resolve(null),
+        fetch(`/api/tools/${params.id}/lineage`).then((r) => r.json()),
       ])
-      setRatings(ratingsData)
-      setForks(forksData)
-      setParent(parentData)
+      setRatings(Array.isArray(ratingsData) ? ratingsData : [])
+      setForks(Array.isArray(forksData) ? forksData : [])
+      setLineage(Array.isArray(lineageData) ? lineageData : [])
       setLoading(false)
     }
     load()
@@ -363,33 +368,54 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
         />
       </section>
 
-      {/* ── Version chain ── */}
-      {(parent || forks.length > 0) && (
+      {/* ── Lineage chain ── */}
+      {(lineage.length > 1 || forks.length > 0) && (
         <section>
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Version Chain</h2>
-          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
-            {parent && (
-              <div className="px-4 py-3 text-sm text-gray-600">
-                Forked from{" "}
-                <Link href={`/tool/${parent.id}`} className="font-medium text-gray-900 hover:underline">
-                  {parent.title} V{parent.version_number ?? 1}
-                </Link>
-                {parent.creator && <span> by {parent.creator.name}</span>}
-              </div>
-            )}
-            {forks.map((fork) => (
-              <div key={fork.id} className="px-4 py-3 text-sm flex items-center justify-between">
-                <span className="text-gray-600">
-                  Forked as{" "}
-                  <Link href={`/tool/${fork.id}`} className="font-medium text-gray-900 hover:underline">
-                    {fork.title} V{fork.version_number ?? 1}
-                  </Link>
-                  {fork.creator && <span className="text-gray-400"> by {fork.creator.name}</span>}
-                </span>
-                <span className="text-xs text-gray-400">{new Date(fork.created_at).toLocaleDateString()}</span>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Version Lineage</h2>
+
+          {/* Ancestor chain: V1 (Original) by Sarah → V2 by Marcus → V3 (this) */}
+          {lineage.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-4 text-sm">
+              {lineage.map((node, i) => {
+                const isCurrent = node.id === params.id
+                const isRoot    = i === 0
+                return (
+                  <span key={node.id} className="flex items-center gap-1.5">
+                    {i > 0 && <span className="text-gray-300">→</span>}
+                    {isCurrent ? (
+                      <span className="font-medium text-gray-900">
+                        V{node.version_number ?? 1}{isRoot ? " (Original)" : ""} (this version)
+                        {node.creator && <span className="font-normal text-gray-500"> by {node.creator.name}</span>}
+                      </span>
+                    ) : (
+                      <Link href={`/tool/${node.id}`} className="text-gray-700 hover:underline">
+                        V{node.version_number ?? 1}{isRoot ? " (Original)" : ""}
+                        {node.creator && <span className="text-gray-400"> by {node.creator.name}</span>}
+                      </Link>
+                    )}
+                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Direct forks of this tool */}
+          {forks.length > 0 && (
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {forks.map((fork) => (
+                <div key={fork.id} className="px-4 py-3 text-sm flex items-center justify-between">
+                  <span className="text-gray-600">
+                    <Link href={`/tool/${fork.id}`} className="font-medium text-gray-900 hover:underline">
+                      {fork.title}
+                    </Link>
+                    <span className="text-gray-400"> V{fork.version_number ?? 1}</span>
+                    {fork.creator && <span className="text-gray-400"> by {fork.creator.name}</span>}
+                  </span>
+                  <span className="text-xs text-gray-400">{new Date(fork.created_at).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

@@ -168,6 +168,28 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </section>
       )}
 
+      {/* ── Fork Review Header (only for forks) ── */}
+      {review.security_doc?.change_summary && (
+        <section>
+          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-amber-700 bg-amber-200 px-2 py-0.5 rounded">
+                Fork Review
+              </span>
+              {review.security_doc.parent_version_number != null && (
+                <span className="text-sm font-medium text-amber-800">
+                  — Changes from V{review.security_doc.parent_version_number}
+                  {review.security_doc.parent_tool_title && (
+                    <span className="font-normal"> of &ldquo;{review.security_doc.parent_tool_title}&rdquo;</span>
+                  )}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-amber-900 leading-relaxed">{review.security_doc.change_summary}</p>
+          </div>
+        </section>
+      )}
+
       {/* ── Security Document ── */}
       <section>
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Security Review Document</h2>
@@ -178,6 +200,22 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           <SecurityDoc doc={review.security_doc ?? {}} />
         </div>
       </section>
+
+      {/* ── Original Security Doc (fork reference) ── */}
+      {review.security_doc?.parent_security_doc && (
+        <section>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">
+            Original V{review.security_doc.parent_version_number ?? "?"} Security Doc
+            <span className="normal-case font-normal text-gray-400"> (Reference)</span>
+          </h2>
+          <p className="text-xs text-gray-400 mb-4">
+            The original tool&apos;s approved security document for comparison.
+          </p>
+          <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 opacity-80">
+            <SecurityDoc doc={review.security_doc.parent_security_doc} />
+          </div>
+        </section>
+      )}
 
     </main>
   )
