@@ -12,7 +12,43 @@ type SecurityDocData = Record<string, any>
 function isEmpty(v: unknown): boolean {
   if (v === null || v === undefined || v === "") return true
   if (Array.isArray(v)) return v.length === 0
+  if (typeof v === "object") return Object.keys(v as object).length === 0
   return false
+}
+
+// Safely render any value — never passes a raw object as a React child
+function renderValue(value: unknown): React.ReactNode {
+  if (value === null || value === undefined || value === "") {
+    return <span className="text-gray-300 italic">—</span>
+  }
+  if (typeof value === "boolean") return String(value)
+  if (typeof value === "number") return String(value)
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-gray-300 italic">None</span>
+    return (
+      <ul className="list-disc list-inside space-y-0.5">
+        {value.map((item, i) => (
+          <li key={i} className="text-gray-700">{renderValue(item)}</li>
+        ))}
+      </ul>
+    )
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => !isEmpty(v))
+    if (entries.length === 0) return <span className="text-gray-300 italic">—</span>
+    return (
+      <dl className="space-y-0.5 pl-2 border-l-2 border-gray-100">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex gap-1.5 text-sm">
+            <dt className="text-gray-500 flex-shrink-0 capitalize">{k.replace(/_/g, " ")}:</dt>
+            <dd className="text-gray-700">{renderValue(v)}</dd>
+          </div>
+        ))}
+      </dl>
+    )
+  }
+  return String(value)
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -20,26 +56,15 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 function Field({ label, value }: { label: string; value: unknown }) {
-  if (isEmpty(value)) return (
-    <div className="grid grid-cols-3 gap-4 py-1.5">
-      <dt className="text-sm text-gray-500 capitalize">{label.replace(/_/g, " ")}</dt>
-      <dd className="col-span-2 text-sm text-gray-300 italic">Not yet provided</dd>
-    </div>
-  )
-  if (Array.isArray(value)) return (
-    <div className="grid grid-cols-3 gap-4 py-1.5">
-      <dt className="text-sm text-gray-500 capitalize">{label.replace(/_/g, " ")}</dt>
-      <dd className="col-span-2">
-        <ul className="list-disc list-inside space-y-0.5">
-          {value.map((item, i) => <li key={i} className="text-sm text-gray-700">{String(item)}</li>)}
-        </ul>
-      </dd>
-    </div>
-  )
   return (
     <div className="grid grid-cols-3 gap-4 py-1.5">
       <dt className="text-sm text-gray-500 capitalize">{label.replace(/_/g, " ")}</dt>
-      <dd className="col-span-2 text-sm text-gray-700">{String(value)}</dd>
+      <dd className="col-span-2 text-sm">
+        {isEmpty(value)
+          ? <span className="text-gray-300 italic">Not yet provided</span>
+          : renderValue(value)
+        }
+      </dd>
     </div>
   )
 }
@@ -83,6 +108,33 @@ function isMermaid(s: string) {
   return t.startsWith("flowchart") || t.startsWith("graph") || t.startsWith("sequencediagram") || t.startsWith("erdiagram")
 }
 
+// Render an array that might contain strings or objects
+function renderList(items: unknown[]): React.ReactNode {
+  if (!items || items.length === 0) return <span className="text-gray-300 italic text-sm">None listed</span>
+  return (
+    <ul className="list-disc list-inside space-y-1">
+      {items.map((item, i) => (
+        <li key={i} className="text-gray-700 text-sm">{renderValue(item)}</li>
+      ))}
+    </ul>
+  )
+}
+
+// Render data flow steps — objects get a structured layout, strings get plain text
+function renderDataFlowSteps(steps: unknown[]): React.ReactNode {
+  if (!steps || steps.length === 0) return null
+  return (
+    <ol className="space-y-2 mt-3">
+      {steps.map((step, i) => (
+        <li key={i} className="flex gap-3">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-medium flex items-center justify-center mt-0.5">{i + 1}</span>
+          <div className="flex-1 text-sm text-gray-700">{renderValue(step)}</div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
@@ -115,7 +167,7 @@ export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
 
       {/* ── 1. Application Description ── */}
       <SectionHeading>1. Application Description</SectionHeading>
-      {!isEmpty(ad.summary) && <p className="text-gray-700 mb-4 leading-relaxed">{ad.summary}</p>}
+      {!isEmpty(ad.summary) && <p className="text-gray-700 mb-4 leading-relaxed">{String(ad.summary)}</p>}
       <dl className="space-y-0.5">
         {Object.entries(kc).map(([k, v]) => <Field key={k} label={k} value={v} />)}
       </dl>
@@ -133,13 +185,7 @@ export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
           ? <MermaidDiagram chart={String(da.high_level_data_flow)} />
           : <p className="text-gray-700 mb-4 leading-relaxed">{String(da.high_level_data_flow)}</p>
       )}
-      {!isEmpty(da.detailed_data_flow_steps) && (
-        <ol className="list-decimal list-inside space-y-1 mt-3">
-          {(da.detailed_data_flow_steps as string[]).map((step, i) => (
-            <li key={i} className="text-gray-700">{step}</li>
-          ))}
-        </ol>
-      )}
+      {!isEmpty(da.detailed_data_flow_steps) && renderDataFlowSteps(da.detailed_data_flow_steps as unknown[])}
 
       {/* ── 4. Application Architecture ── */}
       <SectionHeading>4. Application Architecture</SectionHeading>
@@ -161,11 +207,7 @@ export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
           <RiskBadge risk={String(fra.risk_level)} />
         </div>
       )}
-      {!isEmpty(fra.risk_factors) && (
-        <ul className="list-disc list-inside space-y-1">
-          {(fra.risk_factors as string[]).map((f, i) => <li key={i} className="text-gray-700">{f}</li>)}
-        </ul>
-      )}
+      {!isEmpty(fra.risk_factors) && renderList(fra.risk_factors as unknown[])}
 
       {/* ── 7. STRIDE Threat Modeling ── */}
       <SectionHeading>7. STRIDE Threat Modeling</SectionHeading>
@@ -195,28 +237,18 @@ export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
       <div className="grid grid-cols-2 gap-6">
         <div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Current controls</p>
-          {isEmpty(cm.current_controls)
-            ? <p className="text-gray-300 text-sm italic">None listed</p>
-            : <ul className="list-disc list-inside space-y-1">
-                {(cm.current_controls as string[]).map((c, i) => <li key={i} className="text-gray-700">{c}</li>)}
-              </ul>
-          }
+          {renderList((cm.current_controls ?? []) as unknown[])}
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Recommended controls</p>
-          {isEmpty(cm.recommended_controls)
-            ? <p className="text-gray-300 text-sm italic">None listed</p>
-            : <ul className="list-disc list-inside space-y-1">
-                {(cm.recommended_controls as string[]).map((c, i) => <li key={i} className="text-gray-700">{c}</li>)}
-              </ul>
-          }
+          {renderList((cm.recommended_controls ?? []) as unknown[])}
         </div>
       </div>
 
       {/* ── 9. Threat Statement Summary ── */}
       <SectionHeading>9. Threat Statement Summary</SectionHeading>
       {!isEmpty(tss.executive_summary) && (
-        <p className="text-gray-700 mb-4 leading-relaxed">{tss.executive_summary}</p>
+        <p className="text-gray-700 mb-4 leading-relaxed">{String(tss.executive_summary)}</p>
       )}
       {!isEmpty(tss.approval_recommendation) && (
         <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
@@ -225,18 +257,16 @@ export default function SecurityDoc({ doc }: { doc: SecurityDocData }) {
         </div>
       )}
       <div className="grid grid-cols-2 gap-6 mt-2">
-        {[
+        {([
           ["Key strengths",  tss.key_strengths],
           ["Key concerns",   tss.key_concerns],
           ["Conditions",     tss.conditions],
           ["Residual risks", tss.residual_risks],
-        ].map(([label, items]) => (
+        ] as [string, unknown[]][]).map(([label, items]) => (
           !isEmpty(items) && (
-            <div key={label as string}>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{label as string}</p>
-              <ul className="list-disc list-inside space-y-1">
-                {(items as string[]).map((item, i) => <li key={i} className="text-gray-700">{item}</li>)}
-              </ul>
+            <div key={label}>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{label}</p>
+              {renderList(items)}
             </div>
           )
         ))}
