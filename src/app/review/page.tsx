@@ -51,7 +51,7 @@ export default function ReviewQueuePage() {
     setLoading(true)
     fetch(`/api/reviews?status=${activeTab}`)
       .then((r) => r.json())
-      .then((data) => { setReviews(data); setLoading(false) })
+      .then((data) => { setReviews(Array.isArray(data) ? data : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [activeTab])
 

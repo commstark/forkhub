@@ -126,14 +126,16 @@ export default function BrowsePage() {
     setLoading(true)
     fetch(`/api/tools?${params}`)
       .then((r) => r.json())
-      .then((data: Tool[]) => {
-        setTools(data)
+      .then((data) => {
+        const list: Tool[] = Array.isArray(data) ? data : []
+        setTools(list)
         if (!filters.category) {
-          setCategories(Array.from(new Set(data.map((t) => t.category).filter(Boolean))))
+          setCategories(Array.from(new Set(list.map((t) => t.category).filter(Boolean))))
         }
         if (!filters.file_type) {
-          setFileTypes(Array.from(new Set(data.map((t) => t.file_type).filter(Boolean))))
+          setFileTypes(Array.from(new Set(list.map((t) => t.file_type).filter(Boolean))))
         }
+        if (!Array.isArray(data)) setError("Failed to load tools")
         setLoading(false)
       })
       .catch(() => { setError("Failed to load tools"); setLoading(false) })
