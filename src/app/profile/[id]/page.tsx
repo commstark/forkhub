@@ -60,25 +60,33 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatarUrl} alt={name} className="w-16 h-16 rounded-full object-cover" />
-  }
   const initials = name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()
+  if (avatarUrl) {
+    return (
+      <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+      </div>
+    )
+  }
   return (
-    <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-xl font-semibold text-gray-600">
+    <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-600">
       {initials}
     </div>
   )
 }
 
-function StatBox({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="text-center">
+function StatBox({ label, value, href }: { label: string; value: string | number; href?: string }) {
+  const inner = (
+    <>
       <div className="text-2xl font-semibold text-gray-900">{value}</div>
       <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-    </div>
+    </>
   )
+  if (href) return (
+    <a href={href} className="text-center block hover:opacity-70 transition cursor-pointer">{inner}</a>
+  )
+  return <div className="text-center">{inner}</div>
 }
 
 function RatingStars({ avg, count }: { avg: number; count: number }) {
@@ -162,11 +170,12 @@ function InReviewCard({ tool }: { tool: Tool }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage({ params }: { params: { id: string } }) {
-  const [profile, setProfile]   = useState<UserProfile | null>(null)
-  const [approved, setApproved] = useState<Tool[]>([])
-  const [inReview, setInReview] = useState<Tool[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [profile, setProfile]     = useState<UserProfile | null>(null)
+  const [originals, setOriginals] = useState<Tool[]>([])
+  const [forks, setForks]         = useState<Tool[]>([])
+  const [inReview, setInReview]   = useState<Tool[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [notFound, setNotFound]   = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -175,10 +184,11 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       const profileData: UserProfile = await profileRes.json()
       setProfile(profileData)
 
-      // Fetch their tools
       const uploadsData = await fetch(`/api/users/${params.id}/tools`).then((r) => r.json())
       const tools: Tool[] = Array.isArray(uploadsData) ? uploadsData : []
-      setApproved(tools.filter((t) => t.status === "approved"))
+      const approved = tools.filter((t) => t.status === "approved")
+      setOriginals(approved.filter((t) => !t.parent_tool_id))
+      setForks(approved.filter((t) => !!t.parent_tool_id))
       setInReview(tools.filter((t) => t.status === "in_review" || t.status === "draft"))
       setLoading(false)
     }
@@ -215,9 +225,9 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       {/* ── Stats row ── */}
       <section className="border border-gray-200 rounded-lg p-6">
         <div className="grid grid-cols-4 gap-6 divide-x divide-gray-200">
-          <StatBox label="Tools created"       value={profile.stats.total_tools} />
-          <StatBox label="Forks made"          value={profile.stats.total_forks_made} />
-          <StatBox label="Forked by others"    value={profile.stats.total_forked_by_others} />
+          <StatBox label="Tools created"    value={originals.length}                   href="#tools" />
+          <StatBox label="Forks made"       value={forks.length}                        href="#forks" />
+          <StatBox label="In review"        value={inReview.length}                     href="#review" />
           <StatBox
             label="Avg rating"
             value={profile.stats.total_ratings === 0 ? "—" : `${profile.stats.avg_rating.toFixed(1)} ★`}
@@ -225,23 +235,35 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
         </div>
       </section>
 
-      {/* ── Approved tools ── */}
-      <section>
+      {/* ── Original tools ── */}
+      <section id="tools">
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Tools ({approved.length})
+          Tools ({originals.length})
         </h2>
-        {approved.length === 0 ? (
-          <p className="text-sm text-gray-400">No approved tools yet.</p>
+        {originals.length === 0 ? (
+          <p className="text-sm text-gray-400">No tools created yet.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {approved.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+            {originals.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
           </div>
         )}
       </section>
 
+      {/* ── Forks made ── */}
+      {forks.length > 0 && (
+        <section id="forks">
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+            Forks Made ({forks.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {forks.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+          </div>
+        </section>
+      )}
+
       {/* ── In review / draft ── */}
       {inReview.length > 0 && (
-        <section>
+        <section id="review">
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
             In Review / Draft ({inReview.length})
           </h2>
