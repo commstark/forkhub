@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 type ReviewItem = {
   id: string
@@ -44,6 +45,7 @@ export default function ReviewQueuePage() {
   const [reviews, setReviews] = useState<ReviewItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("pending")
+  const router = useRouter()
 
   useEffect(() => {
     setLoading(true)
@@ -102,11 +104,11 @@ export default function ReviewQueuePage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {reviews.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50 cursor-pointer">
+                <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/review/${r.id}`)}>
                   <td className="px-4 py-3">
-                    <Link href={`/review/${r.id}`} className="font-medium text-gray-900 hover:underline">
+                    <span className="font-medium text-gray-900">
                       {r.tool?.title ?? "—"}
-                    </Link>
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     {r.tool?.classification && (

@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
   const category       = formData.get("category") as string
   const classification = formData.get("classification") as string
   const file           = formData.get("file") as File
-  const parentToolId   = formData.get("parent_tool_id") as string | null
-  const changeType     = (formData.get("change_type") as string | null) ?? "major_change"
+  const parentToolId      = formData.get("parent_tool_id") as string | null
+  const changeType        = (formData.get("change_type") as string | null) ?? "major_change"
+  const securityDocRaw    = formData.get("security_doc") as string | null
 
   if (!title || !description || !category || !classification || !file) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -104,15 +105,34 @@ export async function POST(request: NextRequest) {
     await writeAuditLog({ orgId, userId, action: "tool.minor_update", targetType: "tool", targetId: toolId,
       metadata: { title, classification, parent_tool_id: parentToolId } })
   } else if (status === "in_review") {
-    // Customer-facing new upload or major change — create review with pre-populated security_doc
-    const securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
-    const { error: reviewError } = await supabaseServer
+    // Customer-facing new upload or major change — create review
+    // Use agent-provided security_doc if supplied, otherwise build empty template
+    let securityDoc: Record<string, unknown>
+    if (securityDocRaw) {
+      try {
+        securityDoc = JSON.parse(securityDocRaw)
+      } catch {
+        securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
+      }
+    } else {
+      securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
+    }
+
+    const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")
       .insert({ tool_id: toolId, status: "pending", security_doc: securityDoc, created_at: now })
+      .select("id")
+      .single()
     if (reviewError) console.error("Failed to create review:", reviewError.message)
 
     await writeAuditLog({ orgId, userId, action: "tool.submitted", targetType: "tool", targetId: toolId,
       metadata: { title, classification, change_type: changeType } })
+
+    return NextResponse.json({
+      ...tool,
+      review_id: review?.id ?? null,
+      security_doc_template: securityDocRaw ? null : securityDoc,
+    }, { status: 201 })
   } else {
     await writeAuditLog({ orgId, userId, action: "tool.created", targetType: "tool", targetId: toolId,
       metadata: { title, classification, status } })
