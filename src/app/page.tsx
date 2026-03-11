@@ -147,9 +147,10 @@ export default function BrowsePage() {
     <main className="max-w-6xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">ForkHub</h1>
-        <Link href="/my-uploads" className="text-sm text-gray-500 hover:text-gray-900">
-          My uploads →
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/review" className="text-sm text-gray-500 hover:text-gray-900">Review queue</Link>
+          <Link href="/my-uploads" className="text-sm text-gray-500 hover:text-gray-900">My uploads →</Link>
+        </div>
       </div>
 
       {/* Search — live with debounce */}

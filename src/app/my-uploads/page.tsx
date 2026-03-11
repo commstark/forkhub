@@ -17,6 +17,7 @@ type Tool = {
   rating_avg: number
   rating_count: number
   created_at: string
+  review_id: string | null
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -77,7 +78,7 @@ export default function MyUploads() {
           {tools.map((tool) => (
             <Link
               key={tool.id}
-              href={`/tool/${tool.id}`}
+              href={tool.status === "in_review" && tool.review_id ? `/review/${tool.review_id}` : `/tool/${tool.id}`}
               className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition"
             >
               <div className="flex items-start justify-between gap-4">

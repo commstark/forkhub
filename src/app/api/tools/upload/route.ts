@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
+import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
@@ -15,11 +16,13 @@ export async function POST(request: NextRequest) {
   const { id: userId, orgId } = session.user
 
   const formData = await request.formData()
-  const title = formData.get("title") as string
-  const description = formData.get("description") as string
-  const category = formData.get("category") as string
+  const title          = formData.get("title") as string
+  const description    = formData.get("description") as string
+  const category       = formData.get("category") as string
   const classification = formData.get("classification") as string
-  const file = formData.get("file") as File
+  const file           = formData.get("file") as File
+  const parentToolId   = formData.get("parent_tool_id") as string | null
+  const changeType     = (formData.get("change_type") as string | null) ?? "major_change"
 
   if (!title || !description || !category || !classification || !file) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -28,16 +31,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid classification" }, { status: 400 })
   }
 
-  const toolId = randomUUID()
+  // If updating an approved tool with minor_change, auto-approve without review
+  let isMinorUpdate = false
+  if (parentToolId) {
+    const { data: parent } = await supabaseServer
+      .from("tools")
+      .select("id, status, org_id")
+      .eq("id", parentToolId)
+      .eq("org_id", orgId)
+      .single()
+
+    if (parent?.status === "approved" && changeType === "minor_change") {
+      isMinorUpdate = true
+    }
+  }
+
+  const toolId      = randomUUID()
   const storagePath = `${orgId}/${toolId}/${file.name}`
 
-  // Upload file to Supabase Storage
   const { error: storageError } = await supabaseServer.storage
     .from("tool-files")
-    .upload(storagePath, await file.arrayBuffer(), {
-      contentType: file.type,
-      upsert: false,
-    })
+    .upload(storagePath, await file.arrayBuffer(), { contentType: file.type, upsert: false })
 
   if (storageError) {
     return NextResponse.json({ error: "File upload failed", details: storageError.message }, { status: 500 })
@@ -47,7 +61,16 @@ export async function POST(request: NextRequest) {
     .from("tool-files")
     .getPublicUrl(storagePath)
 
-  const status = classification === "internal_noncustomer" ? "approved" : "in_review"
+  // Determine status
+  let status: string
+  if (isMinorUpdate) {
+    status = "approved"
+  } else if (classification === "internal_noncustomer") {
+    status = "approved"
+  } else {
+    status = "in_review"
+  }
+
   const now = new Date().toISOString()
 
   const { data: tool, error: toolError } = await supabaseServer
@@ -65,6 +88,7 @@ export async function POST(request: NextRequest) {
       file_type: file.type,
       file_name: file.name,
       file_size: file.size,
+      parent_tool_id: parentToolId || null,
       created_at: now,
       updated_at: now,
     })
@@ -75,29 +99,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create tool", details: toolError.message }, { status: 500 })
   }
 
-  // Create pending review for customer-facing classifications
-  if (status === "in_review") {
+  if (isMinorUpdate) {
+    // Minor update to approved tool — auto-approve, no review
+    await writeAuditLog({ orgId, userId, action: "tool.minor_update", targetType: "tool", targetId: toolId,
+      metadata: { title, classification, parent_tool_id: parentToolId } })
+  } else if (status === "in_review") {
+    // Customer-facing new upload or major change — create review with pre-populated security_doc
+    const securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
     const { error: reviewError } = await supabaseServer
       .from("reviews")
-      .insert({
-        tool_id: toolId,
-        status: "pending",
-        security_doc: {},
-        created_at: now,
-      })
-    if (reviewError) {
-      console.error("Failed to create review row:", reviewError.message)
-    }
-  }
+      .insert({ tool_id: toolId, status: "pending", security_doc: securityDoc, created_at: now })
+    if (reviewError) console.error("Failed to create review:", reviewError.message)
 
-  await writeAuditLog({
-    orgId,
-    userId,
-    action: "tool.created",
-    targetType: "tool",
-    targetId: toolId,
-    metadata: { title, classification, status },
-  })
+    await writeAuditLog({ orgId, userId, action: "tool.submitted", targetType: "tool", targetId: toolId,
+      metadata: { title, classification, change_type: changeType } })
+  } else {
+    await writeAuditLog({ orgId, userId, action: "tool.created", targetType: "tool", targetId: toolId,
+      metadata: { title, classification, status } })
+  }
 
   return NextResponse.json(tool, { status: 201 })
 }
