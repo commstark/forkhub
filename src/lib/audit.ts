@@ -13,8 +13,10 @@ type AuditAction =
   | "tool.changes_requested"
   | "user.role_changed"
   | "review.completed"
+  | "org.settings_updated"
+  | "org.integrations_updated"
 
-type AuditTargetType = "tool" | "user" | "review"
+type AuditTargetType = "tool" | "user" | "review" | "org"
 
 interface WriteAuditLogParams {
   orgId: string

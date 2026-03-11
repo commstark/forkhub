@@ -11,6 +11,9 @@ export default function NavBar() {
 
   return (
     <div className="border-b border-gray-200 bg-white px-6 py-2 flex items-center justify-end gap-4">
+      {session.user.role === "admin" && (
+        <Link href="/admin" className="text-sm text-gray-400 hover:text-gray-700 transition">Admin</Link>
+      )}
       <Link href={`/profile/${session.user.id}`} className="text-sm text-gray-400 hover:text-gray-700 transition">
         My Profile
       </Link>
