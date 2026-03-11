@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     .from("reviews")
     .select(`
       id, status, notes, created_at, reviewed_at,
-      tool:tools!tool_id(id, title, classification, file_type, category, created_at,
+      tool:tools!tool_id(id, title, classification, file_type, category, created_at, creator_id,
         creator:users!creator_id(name, avatar_url))
     `)
     .in("tool_id", toolIds)

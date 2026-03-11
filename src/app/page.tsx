@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 type Creator = { name: string; avatar_url: string | null }
 
@@ -20,6 +21,7 @@ type Tool = {
   version_number: number
   parent_tool_id: string | null
   parent: ParentInfo
+  creator_id: string
   created_at: string
   creator: Creator | null
 }
@@ -59,6 +61,7 @@ function RatingDisplay({ avg, count }: { avg: number; count: number }) {
 }
 
 function ToolCard({ tool }: { tool: Tool }) {
+  const router = useRouter()
   return (
     <Link href={`/tool/${tool.id}`} className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition">
       <div className="flex items-start justify-between gap-2 mb-1">
@@ -92,7 +95,12 @@ function ToolCard({ tool }: { tool: Tool }) {
       </div>
 
       <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-400">{tool.creator?.name ?? "Unknown"}</span>
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/profile/${tool.creator_id}`) }}
+          className="text-gray-400 hover:text-gray-700 hover:underline text-xs"
+        >
+          {tool.creator?.name ?? "Unknown"}
+        </button>
         <div className="flex items-center gap-3">
           <RatingDisplay avg={tool.rating_avg} count={tool.rating_count} />
           {tool.fork_count > 0 && (

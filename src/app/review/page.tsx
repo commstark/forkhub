@@ -16,6 +16,7 @@ type ReviewItem = {
     file_type: string
     category: string
     created_at: string
+    creator_id: string
     creator: { name: string; avatar_url: string | null } | null
   } | null
 }
@@ -118,7 +119,15 @@ export default function ReviewQueuePage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-500 font-mono text-xs">{r.tool?.file_type ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.tool?.creator?.name ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {r.tool?.creator_id ? (
+                      <Link href={`/profile/${r.tool.creator_id}`} onClick={(e) => e.stopPropagation()} className="text-gray-600 hover:underline">
+                        {r.tool.creator?.name ?? "—"}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-600">{r.tool?.creator?.name ?? "—"}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[r.status] ?? "bg-gray-100 text-gray-700"}`}>

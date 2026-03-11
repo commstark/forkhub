@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 
 export default function NavBar() {
   const { data: session } = useSession()
@@ -9,7 +10,10 @@ export default function NavBar() {
   if (!session || pathname.startsWith("/preview")) return null
 
   return (
-    <div className="border-b border-gray-200 bg-white px-6 py-2 flex items-center justify-end">
+    <div className="border-b border-gray-200 bg-white px-6 py-2 flex items-center justify-end gap-4">
+      <Link href={`/profile/${session.user.id}`} className="text-sm text-gray-400 hover:text-gray-700 transition">
+        My Profile
+      </Link>
       <button
         onClick={() => signOut({ callbackUrl: "/login" })}
         className="text-sm text-gray-400 hover:text-gray-700 transition"

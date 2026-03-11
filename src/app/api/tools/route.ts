@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   // No query — standard filtered query
   let query = supabaseServer
     .from("tools")
-    .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, created_at, creator:users!creator_id(name, avatar_url)")
+    .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, creator:users!creator_id(name, avatar_url)")
     .eq("org_id", session.user.orgId)
     .eq("status", status)
 
