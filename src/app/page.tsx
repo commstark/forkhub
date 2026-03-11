@@ -44,11 +44,16 @@ const CLASSIFICATION_STYLES: Record<string, string> = {
 }
 
 function RatingDisplay({ avg, count }: { avg: number; count: number }) {
-  if (count === 0) return <span className="text-gray-400">No ratings yet</span>
+  if (count === 0) return <span className="text-gray-400 text-xs">No ratings yet</span>
+  const full  = Math.round(avg)
+  const empty = 5 - full
   return (
-    <span className="text-gray-500">
-      ★ {Number(avg).toFixed(1)}{" "}
-      <span className="text-gray-400">({count} {count === 1 ? "rating" : "ratings"})</span>
+    <span className="flex items-center gap-1">
+      <span className="text-yellow-400 text-xs leading-none">
+        {"★".repeat(full)}<span className="text-gray-200">{"★".repeat(empty)}</span>
+      </span>
+      <span className="text-gray-500 text-xs">{Number(avg).toFixed(1)}</span>
+      <span className="text-gray-400 text-xs">({count})</span>
     </span>
   )
 }

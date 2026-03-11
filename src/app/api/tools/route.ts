@@ -84,9 +84,31 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const enriched = (data ?? []).map((t: { parent_tool_id: string | null }) => ({
+  // Fetch live rating stats — avoids relying on denormalized rating_count/rating_avg
+  const toolIds = (data ?? []).map((t: { id: string }) => t.id)
+  const ratingMap = new Map<string, { rating_count: number; rating_avg: number }>()
+  if (toolIds.length > 0) {
+    const { data: ratingRows } = await supabaseServer
+      .from("ratings")
+      .select("tool_id, score")
+      .in("tool_id", toolIds)
+    const grouped = new Map<string, number[]>()
+    for (const r of ratingRows ?? []) {
+      if (!grouped.has(r.tool_id)) grouped.set(r.tool_id, [])
+      grouped.get(r.tool_id)!.push(r.score)
+    }
+    for (const [id, scores] of Array.from(grouped)) {
+      ratingMap.set(id, {
+        rating_count: scores.length,
+        rating_avg: parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)),
+      })
+    }
+  }
+
+  const enriched = (data ?? []).map((t: { id: string; parent_tool_id: string | null }) => ({
     ...t,
     parent: (t.parent_tool_id ? parentMap.get(t.parent_tool_id) : null) ?? null,
+    ...(ratingMap.get(t.id) ?? { rating_count: 0, rating_avg: 0 }),
   }))
 
   return NextResponse.json(enriched)
