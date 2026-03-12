@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
+import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
@@ -187,6 +188,10 @@ export async function POST(
 
     if (reviewError) console.error("Failed to create fork review:", reviewError.message)
     reviewId = review?.id ?? null
+
+    notifySlack(orgId, slackMessages.submitted(
+      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, file.type
+    ))
   }
 
   // Audit log

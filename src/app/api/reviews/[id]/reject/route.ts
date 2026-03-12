@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
+import { notifySlack, slackMessages } from "@/lib/slack"
 
 export async function POST(
   request: NextRequest,
@@ -23,7 +24,7 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, tool:tools!tool_id(id, org_id)")
+    .select("id, tool_id, tool:tools!tool_id(id, org_id, title)")
     .eq("id", params.id)
     .single()
 
@@ -44,6 +45,12 @@ export async function POST(
     action: "tool.rejected", targetType: "review", targetId: params.id,
     metadata: { tool_id: review.tool_id, notes },
   })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const toolTitle = (review.tool as any)?.title ?? "Unknown"
+  notifySlack(auth.user.orgId, slackMessages.rejected(
+    toolTitle, auth.user.name ?? auth.user.email ?? "Unknown", notes
+  ))
 
   return NextResponse.json({ success: true })
 }

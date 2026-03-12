@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
+import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
@@ -133,6 +134,10 @@ export async function POST(request: NextRequest) {
 
     await writeAuditLog({ orgId, userId, action: "tool.submitted", targetType: "tool", targetId: toolId,
       metadata: { title, classification, change_type: changeType } })
+
+    notifySlack(orgId, slackMessages.submitted(
+      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, file.type
+    ))
 
     return NextResponse.json({
       ...tool,
