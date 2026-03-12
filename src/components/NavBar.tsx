@@ -2,30 +2,11 @@
 
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef } from "react"
 import Link from "next/link"
 
 export default function NavBar() {
   const { data: session } = useSession()
   const pathname = usePathname()
-  const navRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    let ticking = false
-    function update() {
-      const progress = Math.min(window.scrollY / 60, 1)
-      if (navRef.current) {
-        navRef.current.style.transform = `translateY(${-(progress * 7)}px)`
-      }
-      ticking = false
-    }
-    function onScroll() {
-      if (!ticking) { requestAnimationFrame(update); ticking = true }
-    }
-    window.addEventListener("scroll", onScroll, { passive: true })
-    update()
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
 
   if (!session || pathname.startsWith("/preview")) return null
 
@@ -35,7 +16,7 @@ export default function NavBar() {
   }
 
   return (
-    <nav ref={navRef} className="nav">
+    <nav className="nav">
       <div className="nav-inner">
         <Link href="/" className="nav-brand">
           <span>The Fork Hub</span>
