@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   const classification = searchParams.get("classification") || null
   const fileType = searchParams.get("file_type") || null
   const sort = searchParams.get("sort") ?? "newest"
+  const minVersion = searchParams.get("min_version") ? parseInt(searchParams.get("min_version")!, 10) : null
+  const exactVersion = searchParams.get("exact_version") ? parseInt(searchParams.get("exact_version")!, 10) : null
 
   // When there's a query, use the search_tools RPC for ilike + trigram similarity ordering
   if (q) {
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     // Reshape flat creator columns into nested creator object
-    const tools = (data ?? []).map(({ creator_name, creator_avatar_url, ...tool }: {
+    let tools = (data ?? []).map(({ creator_name, creator_avatar_url, ...tool }: {
       creator_name: string
       creator_avatar_url: string | null
       [key: string]: unknown
@@ -38,6 +40,10 @@ export async function GET(request: NextRequest) {
       ...tool,
       creator: { name: creator_name, avatar_url: creator_avatar_url },
     }))
+
+    // Apply version filters post-search (RPC doesn't support version params)
+    if (minVersion) tools = tools.filter((t: { version_number?: number }) => (t.version_number ?? 1) >= minVersion)
+    if (exactVersion) tools = tools.filter((t: { version_number?: number }) => (t.version_number ?? 1) === exactVersion)
 
     return NextResponse.json(tools)
   }
@@ -52,6 +58,8 @@ export async function GET(request: NextRequest) {
   if (category) query = query.eq("category", category)
   if (classification) query = query.eq("classification", classification)
   if (fileType) query = query.eq("file_type", fileType)
+  if (minVersion) query = query.gte("version_number", minVersion)
+  if (exactVersion) query = query.eq("version_number", exactVersion)
 
   switch (sort) {
     case "most_forked":
@@ -72,14 +80,14 @@ export async function GET(request: NextRequest) {
     .map((t: { parent_tool_id: string | null }) => t.parent_tool_id)
     .filter((id): id is string => !!id)
 
-  const parentMap = new Map<string, { id: string; version_number: number; creator: { name: string } | null }>()
+  const parentMap = new Map<string, { id: string; title: string; version_number: number; creator: { name: string } | null }>()
   if (parentIds.length > 0) {
     const { data: parents } = await supabaseServer
       .from("tools")
-      .select("id, version_number, creator:users!creator_id(name)")
+      .select("id, title, version_number, creator:users!creator_id(name)")
       .in("id", parentIds)
     for (const p of parents ?? []) {
-      parentMap.set(p.id, p as unknown as { id: string; version_number: number; creator: { name: string } | null })
+      parentMap.set(p.id, p as unknown as { id: string; title: string; version_number: number; creator: { name: string } | null })
     }
   }
 

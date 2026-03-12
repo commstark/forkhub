@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import Select from "@/components/Select"
 
 type Creator = { name: string; avatar_url: string | null }
-type ParentInfo = { id: string; version_number: number; creator: { name: string } | null } | null
+type ParentInfo = { id: string; title: string; version_number: number; creator: { name: string } | null } | null
 
 type Tool = {
   id: string
@@ -38,6 +38,20 @@ const SORTS = [
   { value: "most_forked", label: "Most forked" },
   { value: "highest_rated", label: "Highest rated" },
 ]
+
+const VERSION_OPTIONS = [
+  { value: "", label: "All versions" },
+  { value: "v1", label: "Originals only (V1)" },
+  { value: "v2plus", label: "Iterated (V2+)" },
+  { value: "v3plus", label: "V3+" },
+]
+
+function versionToParams(version: string): Record<string, string> {
+  if (version === "v1")     return { exact_version: "1" }
+  if (version === "v2plus") return { min_version: "2" }
+  if (version === "v3plus") return { min_version: "3" }
+  return {}
+}
 
 function classificationClass(c: string) {
   if (c === "internal_noncustomer") return "badge-nc"
@@ -123,6 +137,7 @@ function RevealSection({ children, delay = 0 }: { children: React.ReactNode; del
 
 function ToolCard({ tool, index }: { tool: Tool; index: number }) {
   const router = useRouter()
+  const isForked = (tool.version_number ?? 1) > 1 && tool.parent
   return (
     <Link
       href={`/tool/${tool.id}`}
@@ -133,6 +148,12 @@ function ToolCard({ tool, index }: { tool: Tool; index: number }) {
         <span className="card-title">{tool.title}</span>
         <span className="ver-pill flex-shrink-0">V{tool.version_number ?? 1}</span>
       </div>
+
+      {isForked && (
+        <p style={{ fontSize: 11, color: "var(--text-3)", margin: "2px 0 4px", lineHeight: 1.3 }}>
+          forked from {tool.parent!.title}
+        </p>
+      )}
 
       <p className="card-desc">{tool.description}</p>
 
@@ -176,6 +197,11 @@ function ToolListRow({ tool, index }: { tool: Tool; index: number }) {
     >
       <div className="min-w-0">
         <span style={{ fontWeight: 500, fontSize: 13, color: "var(--text-1)" }}>{tool.title}</span>
+        {(tool.version_number ?? 1) > 1 && tool.parent && (
+          <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>
+            forked from {tool.parent.title}
+          </span>
+        )}
         {tool.description && (
           <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }} className="truncate">
             {tool.description.slice(0, 60)}{tool.description.length > 60 ? "…" : ""}
@@ -202,6 +228,33 @@ function ToolListRow({ tool, index }: { tool: Tool; index: number }) {
   )
 }
 
+// ─── Filter pill ─────────────────────────────────────────────────────────────
+
+function FilterPill({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "2px 8px 2px 10px", borderRadius: 20,
+      background: "var(--surface-2)", border: "1px solid var(--border)",
+      fontSize: 12, color: "var(--text-2)", lineHeight: 1.5,
+    }}>
+      {label}
+      <button
+        onClick={onRemove}
+        style={{
+          background: "none", border: "none", cursor: "pointer", padding: 0,
+          display: "flex", alignItems: "center", color: "var(--text-3)",
+          fontSize: 14, lineHeight: 1,
+        }}
+        onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-1)")}
+        onMouseOut={(e)  => (e.currentTarget.style.color = "var(--text-3)")}
+      >
+        ×
+      </button>
+    </span>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BrowsePage() {
@@ -210,11 +263,13 @@ export default function BrowsePage() {
   const [error, setError]           = useState<string | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [fileTypes, setFileTypes]   = useState<string[]>([])
+  const [categoryCounts, setCategoryCounts] = useState<Map<string, number>>(new Map())
+  const [fileTypeCounts, setFileTypeCounts] = useState<Map<string, number>>(new Map())
   const [searchInput, setSearchInput] = useState("")
   const [viewMode, setViewMode]     = useState<"grid" | "list">("grid")
 
   const [filters, setFilters] = useState({
-    q: "", category: "", classification: "", file_type: "", sort: "newest",
+    q: "", category: "", classification: "", file_type: "", sort: "newest", version: "",
   })
 
   useEffect(() => {
@@ -229,6 +284,8 @@ export default function BrowsePage() {
     if (filters.classification) params.set("classification", filters.classification)
     if (filters.file_type)      params.set("file_type", filters.file_type)
     if (filters.sort !== "newest") params.set("sort", filters.sort)
+    const vp = versionToParams(filters.version)
+    for (const [k, v] of Object.entries(vp)) params.set(k, v)
 
     setLoading(true)
     fetch(`/api/tools?${params}`)
@@ -236,10 +293,19 @@ export default function BrowsePage() {
       .then((data) => {
         const list: Tool[] = Array.isArray(data) ? data : []
         setTools(list)
-        if (!filters.category)
-          setCategories(Array.from(new Set(list.map((t) => t.category).filter(Boolean))))
-        if (!filters.file_type)
+        if (!filters.category) {
+          const cats = Array.from(new Set(list.map((t) => t.category).filter(Boolean)))
+          setCategories(cats)
+          const counts = new Map<string, number>()
+          for (const t of list) if (t.category) counts.set(t.category, (counts.get(t.category) ?? 0) + 1)
+          setCategoryCounts(counts)
+        }
+        if (!filters.file_type) {
           setFileTypes(Array.from(new Set(list.map((t) => t.file_type).filter(Boolean))))
+          const counts = new Map<string, number>()
+          for (const t of list) if (t.file_type) counts.set(t.file_type, (counts.get(t.file_type) ?? 0) + 1)
+          setFileTypeCounts(counts)
+        }
         if (!Array.isArray(data)) setError("Failed to load tools")
         setLoading(false)
       })
@@ -249,6 +315,32 @@ export default function BrowsePage() {
   function setFilter(key: keyof typeof filters, value: string) {
     setFilters((f) => ({ ...f, [key]: value }))
   }
+
+  function clearAllFilters() {
+    setSearchInput("")
+    setFilters({ q: "", category: "", classification: "", file_type: "", sort: "newest", version: "" })
+  }
+
+  // Active filter pills (exclude sort and q)
+  const activeFilters: { key: keyof typeof filters; label: string }[] = []
+  if (filters.category) {
+    const cnt = categoryCounts.get(filters.category)
+    activeFilters.push({ key: "category", label: filters.category + (cnt !== undefined ? ` (${cnt})` : "") })
+  }
+  if (filters.classification) {
+    const opt = CLASSIFICATIONS.find((c) => c.value === filters.classification)
+    activeFilters.push({ key: "classification", label: opt?.label ?? filters.classification })
+  }
+  if (filters.file_type) {
+    const cnt = fileTypeCounts.get(filters.file_type)
+    activeFilters.push({ key: "file_type", label: filters.file_type + (cnt !== undefined ? ` (${cnt})` : "") })
+  }
+  if (filters.version) {
+    const opt = VERSION_OPTIONS.find((v) => v.value === filters.version)
+    activeFilters.push({ key: "version", label: opt?.label ?? filters.version })
+  }
+
+  const hasActiveFilters = activeFilters.length > 0 || filters.q
 
   return (
     <main className="page">
@@ -275,7 +367,13 @@ export default function BrowsePage() {
         <Select
           value={filters.category}
           onChange={(v) => setFilter("category", v)}
-          options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+          options={[
+            { value: "", label: "All categories" },
+            ...categories.map((c) => ({
+              value: c,
+              label: categoryCounts.get(c) ? `${c} (${categoryCounts.get(c)})` : c,
+            })),
+          ]}
         />
         <Select
           value={filters.classification}
@@ -285,7 +383,18 @@ export default function BrowsePage() {
         <Select
           value={filters.file_type}
           onChange={(v) => setFilter("file_type", v)}
-          options={[{ value: "", label: "All file types" }, ...fileTypes.map((t) => ({ value: t, label: t }))]}
+          options={[
+            { value: "", label: "All file types" },
+            ...fileTypes.map((t) => ({
+              value: t,
+              label: fileTypeCounts.get(t) ? `${t} (${fileTypeCounts.get(t)})` : t,
+            })),
+          ]}
+        />
+        <Select
+          value={filters.version}
+          onChange={(v) => setFilter("version", v)}
+          options={VERSION_OPTIONS}
         />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           {!loading && (
@@ -328,6 +437,32 @@ export default function BrowsePage() {
         </div>
       </div>
 
+      {/* Active filter pills */}
+      {activeFilters.length > 0 && (
+        <div className="flex gap-2 flex-wrap items-center" style={{ marginBottom: 12 }}>
+          {activeFilters.map(({ key, label }) => (
+            <FilterPill
+              key={key}
+              label={label}
+              onRemove={() => setFilter(key, "")}
+            />
+          ))}
+          {activeFilters.length > 1 && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+                fontSize: 12, color: "var(--text-3)",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-1)")}
+              onMouseOut={(e)  => (e.currentTarget.style.color = "var(--text-3)")}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
       {error && <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
       {/* Content */}
@@ -346,8 +481,21 @@ export default function BrowsePage() {
         )
       ) : tools.length === 0 ? (
         <div className="empty-state">
-          <p className="empty-state-title">No tools found</p>
-          <p className="empty-state-desc">Try adjusting your search or filters</p>
+          <p className="empty-state-title">
+            {hasActiveFilters ? "No tools match these filters" : "No tools found"}
+          </p>
+          <p className="empty-state-desc">
+            {hasActiveFilters ? "Try removing a filter to see more results" : "Try adjusting your search or filters"}
+          </p>
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="btn btn-secondary"
+              style={{ marginTop: 12 }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid-3">
