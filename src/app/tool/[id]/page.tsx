@@ -541,7 +541,7 @@ function LiveUrlSection({
           Set sharing to <code style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>link</code> to get a shareable URL anyone can access.
           {isOwner && (
             <span style={{ color: "var(--text-muted)", display: "block", marginTop: 6, fontSize: 12, fontFamily: "var(--font-mono)" }}>
-              POST /api/tools/{tool.id}/sharing {"  "}{"{"}"mode": "link"{"}"}
+              {`POST /api/tools/${tool.id}/sharing  {"mode": "link"}`}
             </span>
           )}
         </p>
@@ -549,7 +549,7 @@ function LiveUrlSection({
 
       {isOwner && (
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "10px 0 0", fontFamily: "var(--font-mono)" }}>
-          Change: POST /api/tools/{tool.id}/sharing {"  "}{"{"}"mode": "private|link|public"{"}"}
+          {`Change: POST /api/tools/${tool.id}/sharing  {"mode": "private|link|public"}`}
         </p>
       )}
     </section>

@@ -213,7 +213,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-3)", marginLeft: 6 }}>(Reference)</span>
           </p>
           <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
-            The original tool's approved security document for comparison.
+            The original tool&apos;s approved security document for comparison.
           </p>
           <div className="card card-pad-lg" style={{ opacity: 0.75 }}>
             <SecurityDoc doc={review.security_doc.parent_security_doc} />
