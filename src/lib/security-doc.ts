@@ -39,7 +39,7 @@ export function buildInitialSecurityDoc(tool: {
         application_type: appType,
         authentication_model: "",
         data_persistence: "",
-        hosting_platform: "ForkHub",
+        hosting_platform: "The Fork Hub",
         access_model: accessModel,
         technology_stack: tool.file_type || ext || "",
         external_integrations: "",
@@ -58,7 +58,7 @@ export function buildInitialSecurityDoc(tool: {
     },
     application_architecture: {
       components: "",
-      hosting: "ForkHub Storage",
+      hosting: "The Fork Hub Storage",
       dependencies: tool.file_type || ext || "",
     },
     integration_architecture: {

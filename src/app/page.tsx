@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Select from "@/components/Select"
 
 type Creator = { name: string; avatar_url: string | null }
-
 type ParentInfo = { id: string; version_number: number; creator: { name: string } | null } | null
 
 type Tool = {
@@ -39,72 +39,124 @@ const SORTS = [
   { value: "highest_rated", label: "Highest rated" },
 ]
 
-const CLASSIFICATION_STYLES: Record<string, string> = {
-  internal_noncustomer: "bg-blue-100 text-blue-700",
-  internal_customer: "bg-purple-100 text-purple-700",
-  external_customer: "bg-orange-100 text-orange-700",
+function classificationClass(c: string) {
+  if (c === "internal_noncustomer") return "badge-nc"
+  if (c === "internal_customer")    return "badge-ic"
+  if (c === "external_customer")    return "badge-ec"
+  return "badge-neutral"
 }
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div className="skeleton-card">
+      <div className="flex items-start justify-between mb-2">
+        <span className="skeleton skeleton-line-lg" style={{ width: "60%" }} />
+        <span className="skeleton" style={{ width: 28, height: 18, borderRadius: 4 }} />
+      </div>
+      <span className="skeleton skeleton-line" style={{ width: "90%" }} />
+      <span className="skeleton skeleton-line-sm" style={{ width: "70%" }} />
+      <div className="flex gap-2 mt-3">
+        <span className="skeleton" style={{ width: 90, height: 18 }} />
+        <span className="skeleton" style={{ width: 60, height: 18 }} />
+      </div>
+    </div>
+  )
+}
+
+function SkeletonRow() {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 160px 170px 100px 60px", gap: 16, padding: "11px 16px", borderBottom: "1px solid #f0f0f0", alignItems: "center" }}>
+      <span className="skeleton skeleton-line" style={{ width: "70%" }} />
+      <span className="skeleton" style={{ height: 18, width: 28 }} />
+      <span className="skeleton skeleton-line-sm" style={{ width: "80%" }} />
+      <span className="skeleton" style={{ height: 18, width: 100 }} />
+      <span className="skeleton skeleton-line-sm" style={{ width: 60 }} />
+      <span className="skeleton skeleton-line-sm" style={{ width: 30 }} />
+    </div>
+  )
+}
+
+// ─── Rating display ───────────────────────────────────────────────────────────
+
 function RatingDisplay({ avg, count }: { avg: number; count: number }) {
-  if (count === 0) return <span className="text-gray-400 text-xs">No ratings yet</span>
+  if (count === 0) return <span style={{ color: "var(--text-3)", fontSize: 12 }}>—</span>
   const full  = Math.round(avg)
   const empty = 5 - full
   return (
     <span className="flex items-center gap-1">
-      <span className="text-yellow-400 text-xs leading-none">
-        {"★".repeat(full)}<span className="text-gray-200">{"★".repeat(empty)}</span>
+      <span className="stars" style={{ fontSize: 12 }}>
+        {"★".repeat(full)}<span className="stars-empty">{"★".repeat(empty)}</span>
       </span>
-      <span className="text-gray-500 text-xs">{Number(avg).toFixed(1)}</span>
-      <span className="text-gray-400 text-xs">({count})</span>
+      <span style={{ fontSize: 12, color: "var(--text-3)" }}>{Number(avg).toFixed(1)}</span>
     </span>
   )
 }
 
-function ToolCard({ tool }: { tool: Tool }) {
+// ─── Scroll reveal hook ───────────────────────────────────────────────────────
+
+function useScrollReveal(ref: React.RefObject<HTMLElement>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add("visible"); obs.disconnect() } },
+      { threshold: 0.05, rootMargin: "0px 0px -40px 0px" }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [ref])
+}
+
+function RevealSection({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useScrollReveal(ref as React.RefObject<HTMLElement>)
+  return (
+    <div ref={ref} className="scroll-reveal" style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  )
+}
+
+// ─── Card view ────────────────────────────────────────────────────────────────
+
+function ToolCard({ tool, index }: { tool: Tool; index: number }) {
   const router = useRouter()
   return (
-    <Link href={`/tool/${tool.id}`} className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-300 hover:shadow-sm transition">
+    <Link
+      href={`/tool/${tool.id}`}
+      className="card card-pad card-stagger"
+      style={{ animationDelay: `${index * 40}ms` }}
+    >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <h2 className="font-medium text-gray-900 leading-snug">{tool.title}</h2>
-        <div className="flex flex-col items-end flex-shrink-0">
-          <span className="text-xs text-gray-400">V{tool.version_number ?? 1}</span>
-          {tool.parent && (
-            <span className="text-xs text-gray-400">
-              from V{tool.parent.version_number ?? 1} by {tool.parent.creator?.name ?? "Unknown"}
-            </span>
-          )}
-        </div>
+        <span className="card-title">{tool.title}</span>
+        <span className="ver-pill flex-shrink-0">V{tool.version_number ?? 1}</span>
       </div>
 
-      <p className="text-sm text-gray-500 line-clamp-2 mb-3">{tool.description}</p>
+      <p className="card-desc">{tool.description}</p>
 
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CLASSIFICATION_STYLES[tool.classification] ?? "bg-gray-100 text-gray-600"}`}>
+      <div className="card-tags">
+        <span className={`badge ${classificationClass(tool.classification)}`}>
           {tool.classification.replace(/_/g, " ")}
         </span>
-        {tool.category && (
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-            {tool.category}
-          </span>
-        )}
-        {tool.file_type && (
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">
-            {tool.file_type}
-          </span>
-        )}
+        {tool.category  && <span className="tag">{tool.category}</span>}
+        {tool.file_type && <span className="tag tag-mono">{tool.file_type}</span>}
       </div>
 
-      <div className="flex items-center justify-between text-xs">
+      <div className="card-footer">
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/profile/${tool.creator_id}`) }}
-          className="text-gray-400 hover:text-gray-700 hover:underline text-xs"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--text-3)" }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-1)")}
+          onMouseOut={(e)  => (e.currentTarget.style.color = "var(--text-3)")}
         >
           {tool.creator?.name ?? "Unknown"}
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <RatingDisplay avg={tool.rating_avg} count={tool.rating_count} />
           {tool.fork_count > 0 && (
-            <span className="text-gray-400">⑂ {tool.fork_count}</span>
+            <span style={{ fontSize: 12, color: "var(--text-3)" }}>⑂ {tool.fork_count}</span>
           )}
         </div>
       </div>
@@ -112,37 +164,70 @@ function ToolCard({ tool }: { tool: Tool }) {
   )
 }
 
+// ─── List view ────────────────────────────────────────────────────────────────
+
+function ToolListRow({ tool, index }: { tool: Tool; index: number }) {
+  const router = useRouter()
+  return (
+    <div
+      className="list-view-row card-stagger"
+      style={{ animationDelay: `${index * 30}ms` }}
+      onClick={() => router.push(`/tool/${tool.id}`)}
+    >
+      <div className="min-w-0">
+        <span style={{ fontWeight: 500, fontSize: 13, color: "var(--text-1)" }}>{tool.title}</span>
+        {tool.description && (
+          <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }} className="truncate">
+            {tool.description.slice(0, 60)}{tool.description.length > 60 ? "…" : ""}
+          </span>
+        )}
+      </div>
+      <span className="ver-pill">{tool.version_number ?? 1}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); router.push(`/profile/${tool.creator_id}`) }}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--text-2)", textAlign: "left" }}
+        onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-1)")}
+        onMouseOut={(e)  => (e.currentTarget.style.color = "var(--text-2)")}
+      >
+        {tool.creator?.name ?? "—"}
+      </button>
+      <span className={`badge ${classificationClass(tool.classification)}`} style={{ justifySelf: "start" }}>
+        {tool.classification.replace(/_/g, " ")}
+      </span>
+      <RatingDisplay avg={tool.rating_avg} count={tool.rating_count} />
+      <span style={{ fontSize: 12, color: "var(--text-3)" }}>
+        {tool.fork_count > 0 ? `⑂ ${tool.fork_count}` : "—"}
+      </span>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BrowsePage() {
-  const [tools, setTools] = useState<Tool[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [tools, setTools]           = useState<Tool[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string | null>(null)
   const [categories, setCategories] = useState<string[]>([])
-  const [fileTypes, setFileTypes] = useState<string[]>([])
+  const [fileTypes, setFileTypes]   = useState<string[]>([])
   const [searchInput, setSearchInput] = useState("")
+  const [viewMode, setViewMode]     = useState<"grid" | "list">("grid")
 
   const [filters, setFilters] = useState({
-    q: "",
-    category: "",
-    classification: "",
-    file_type: "",
-    sort: "newest",
+    q: "", category: "", classification: "", file_type: "", sort: "newest",
   })
 
-  // Debounce search input → filters.q
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setFilters((f) => ({ ...f, q: searchInput }))
-    }, 300)
+    const timer = setTimeout(() => setFilters((f) => ({ ...f, q: searchInput })), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  // Fetch when filters change
   useEffect(() => {
     const params = new URLSearchParams()
-    if (filters.q) params.set("q", filters.q)
-    if (filters.category) params.set("category", filters.category)
+    if (filters.q)              params.set("q", filters.q)
+    if (filters.category)       params.set("category", filters.category)
     if (filters.classification) params.set("classification", filters.classification)
-    if (filters.file_type) params.set("file_type", filters.file_type)
+    if (filters.file_type)      params.set("file_type", filters.file_type)
     if (filters.sort !== "newest") params.set("sort", filters.sort)
 
     setLoading(true)
@@ -151,12 +236,10 @@ export default function BrowsePage() {
       .then((data) => {
         const list: Tool[] = Array.isArray(data) ? data : []
         setTools(list)
-        if (!filters.category) {
+        if (!filters.category)
           setCategories(Array.from(new Set(list.map((t) => t.category).filter(Boolean))))
-        }
-        if (!filters.file_type) {
+        if (!filters.file_type)
           setFileTypes(Array.from(new Set(list.map((t) => t.file_type).filter(Boolean))))
-        }
         if (!Array.isArray(data)) setError("Failed to load tools")
         setLoading(false)
       })
@@ -168,74 +251,129 @@ export default function BrowsePage() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">ForkHub</h1>
-        <div className="flex gap-4">
-          <Link href="/review" className="text-sm text-gray-500 hover:text-gray-900">Review queue</Link>
-          <Link href="/my-uploads" className="text-sm text-gray-500 hover:text-gray-900">My uploads →</Link>
+    <main className="page">
+
+      {/* Search — centered, max 480px */}
+      <div className="catalog-search search-with-kbd">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search tools..."
+          className="input"
+        />
+        <kbd
+          className="search-kbd"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+        >
+          ⌘K
+        </kbd>
+      </div>
+
+      {/* Filters row with count + view toggle */}
+      <div className="catalog-filters flex gap-2 flex-wrap items-center">
+        <Select
+          value={filters.category}
+          onChange={(v) => setFilter("category", v)}
+          options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+        />
+        <Select
+          value={filters.classification}
+          onChange={(v) => setFilter("classification", v)}
+          options={CLASSIFICATIONS}
+        />
+        <Select
+          value={filters.file_type}
+          onChange={(v) => setFilter("file_type", v)}
+          options={[{ value: "", label: "All file types" }, ...fileTypes.map((t) => ({ value: t, label: t }))]}
+        />
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          {!loading && (
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {tools.length} tool{tools.length === 1 ? "" : "s"}
+              {filters.q && ` for "${filters.q}"`}
+            </span>
+          )}
+          <div className="view-toggle">
+            <button
+              className={`view-toggle-btn${viewMode === "grid" ? " active" : ""}`}
+              onClick={() => setViewMode("grid")}
+              title="Grid view"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="0" y="0" width="6" height="6" rx="1"/>
+                <rect x="8" y="0" width="6" height="6" rx="1"/>
+                <rect x="0" y="8" width="6" height="6" rx="1"/>
+                <rect x="8" y="8" width="6" height="6" rx="1"/>
+              </svg>
+            </button>
+            <button
+              className={`view-toggle-btn${viewMode === "list" ? " active" : ""}`}
+              onClick={() => setViewMode("list")}
+              title="List view"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="0" y="1" width="14" height="2" rx="1"/>
+                <rect x="0" y="6" width="14" height="2" rx="1"/>
+                <rect x="0" y="11" width="14" height="2" rx="1"/>
+              </svg>
+            </button>
+          </div>
+          <Select
+            value={filters.sort}
+            onChange={(v) => setFilter("sort", v)}
+            options={SORTS}
+            align="right"
+          />
         </div>
       </div>
 
-      {/* Search — live with debounce */}
-      <input
-        type="text"
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        placeholder="Search tools…"
-        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 mb-4"
-      />
+      {error && <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap mb-6">
-        <select
-          value={filters.category}
-          onChange={(e) => setFilter("category", e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
-        >
-          <option value="">All categories</option>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-
-        <select
-          value={filters.classification}
-          onChange={(e) => setFilter("classification", e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
-        >
-          {CLASSIFICATIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </select>
-
-        <select
-          value={filters.file_type}
-          onChange={(e) => setFilter("file_type", e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
-        >
-          <option value="">All file types</option>
-          {fileTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-
-        <select
-          value={filters.sort}
-          onChange={(e) => setFilter("sort", e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 ml-auto"
-        >
-          {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-      </div>
-
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-
+      {/* Content */}
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        viewMode === "grid" ? (
+          <div className="grid-3">
+            {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <div className="list-view-header">
+              <span>Tool</span><span>Ver</span><span>Creator</span><span>Classification</span><span>Rating</span><span>Forks</span>
+            </div>
+            {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
+          </div>
+        )
       ) : tools.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-1">No tools found</p>
-          <p className="text-sm">Try adjusting your search or filters</p>
+        <div className="empty-state">
+          <p className="empty-state-title">No tools found</p>
+          <p className="empty-state-desc">Try adjusting your search or filters</p>
+        </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid-3">
+          {tools.map((tool, i) => <ToolCard key={tool.id} tool={tool} index={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+        <div className="table-wrap">
+          <div className="list-view-header">
+            <span>Tool</span>
+            <span>Ver</span>
+            <span>Creator</span>
+            <span>Classification</span>
+            <span>Rating</span>
+            <span>Forks</span>
+          </div>
+          {tools.map((tool, i) => <ToolListRow key={tool.id} tool={tool} index={i} />)}
         </div>
+      )}
+
+      {/* Scroll-triggered section — below-fold content */}
+      {!loading && tools.length > 0 && (
+        <RevealSection delay={100}>
+          <p style={{ fontSize: 12, color: "var(--text-3)", textAlign: "center", marginTop: 32 }}>
+            {tools.length} tool{tools.length === 1 ? "" : "s"} in the index
+          </p>
+        </RevealSection>
       )}
     </main>
   )

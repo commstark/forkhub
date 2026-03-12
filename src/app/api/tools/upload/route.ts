@@ -1,19 +1,19 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
+import { generatePreviewData } from "@/lib/preview-data"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { id: userId, orgId } = session.user
+  const { id: userId, orgId } = auth.user
 
   const formData = await request.formData()
   const title          = formData.get("title") as string
@@ -50,9 +50,11 @@ export async function POST(request: NextRequest) {
   const toolId      = randomUUID()
   const storagePath = `${orgId}/${toolId}/${file.name}`
 
+  const fileBuffer = Buffer.from(await file.arrayBuffer())
+
   const { error: storageError } = await supabaseServer.storage
     .from("tool-files")
-    .upload(storagePath, await file.arrayBuffer(), { contentType: file.type, upsert: false })
+    .upload(storagePath, fileBuffer, { contentType: file.type, upsert: false })
 
   if (storageError) {
     return NextResponse.json({ error: "File upload failed", details: storageError.message }, { status: 500 })
@@ -61,6 +63,9 @@ export async function POST(request: NextRequest) {
   const { data: { publicUrl } } = supabaseServer.storage
     .from("tool-files")
     .getPublicUrl(storagePath)
+
+  // Generate preview data for supported file types
+  const previewData = await generatePreviewData(fileBuffer, file.name, file.type)
 
   // Determine status
   let status: string
@@ -90,6 +95,7 @@ export async function POST(request: NextRequest) {
       file_name: file.name,
       file_size: file.size,
       parent_tool_id: parentToolId || null,
+      preview_data:   previewData ?? null,
       created_at: now,
       updated_at: now,
     })

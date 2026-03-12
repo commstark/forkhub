@@ -25,38 +25,39 @@ type IntegrationConfig = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const ROLE_STYLES: Record<string, string> = {
-  admin:    "bg-red-100 text-red-700",
-  reviewer: "bg-blue-100 text-blue-700",
-  member:   "bg-gray-100 text-gray-600",
+function roleClass(r: string) {
+  if (r === "admin")    return "badge-admin"
+  if (r === "reviewer") return "badge-reviewer"
+  return "badge-member"
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">{children}</h2>
+function maskDisplay(val: string) {
+  if (!val || val.length <= 4) return "****"
+  return "****" + val.slice(-4)
 }
 
-// ─── Secret field with reveal toggle ─────────────────────────────────────────
+// ─── SecretField ──────────────────────────────────────────────────────────────
 
-function SecretField({
-  label, value, onChange, placeholder,
-}: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function SecretField({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string
+}) {
   const [revealed, setRevealed] = useState(false)
   return (
-    <div>
-      <label className="block text-xs text-gray-500 mb-1">{label}</label>
-      <div className="flex gap-2">
+    <div className="field">
+      <label className="field-label">{label}</label>
+      <div className="input-row">
         <input
           type={revealed ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          className="input"
         />
         <button
           type="button"
           onClick={() => setRevealed((v) => !v)}
-          className="text-xs text-gray-400 hover:text-gray-700 px-2"
-          title={revealed ? "Hide" : "Reveal"}
+          className="btn-ghost btn btn-sm"
+          style={{ flexShrink: 0 }}
         >
           {revealed ? "Hide" : "Show"}
         </button>
@@ -65,38 +66,28 @@ function SecretField({
   )
 }
 
-// ─── Integration block ────────────────────────────────────────────────────────
+// ─── IntegrationBlock ─────────────────────────────────────────────────────────
 
-function IntegrationBlock({
-  title, children, onSave, onTest, saving, testing, testResult,
-}: {
+function IntegrationBlock({ title, children, onSave, onTest, saving, testing, testResult }: {
   title: string; children: React.ReactNode
   onSave: () => void; onTest?: () => void
   saving: boolean; testing: boolean; testResult: string | null
 }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white space-y-3">
-      <p className="text-sm font-medium text-gray-700">{title}</p>
+    <div className="integ-block">
+      <p className="integ-title">{title}</p>
       {children}
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-700 disabled:opacity-50 transition"
-        >
+      <div className="integ-actions">
+        <button onClick={onSave} disabled={saving} className="btn btn-primary btn-sm">
           {saving ? "Saving…" : "Save"}
         </button>
         {onTest && (
-          <button
-            onClick={onTest}
-            disabled={testing}
-            className="text-xs px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
-          >
+          <button onClick={onTest} disabled={testing} className="btn btn-secondary btn-sm">
             {testing ? "Testing…" : "Test"}
           </button>
         )}
         {testResult && (
-          <span className={`text-xs ${testResult.startsWith("✅") ? "text-green-600" : "text-red-500"}`}>
+          <span style={{ fontSize: 12, color: testResult.startsWith("✅") ? "var(--success)" : "var(--danger)" }}>
             {testResult}
           </span>
         )}
@@ -111,29 +102,27 @@ export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  const [users, setUsers]           = useState<AdminUser[]>([])
-  const [org, setOrg]               = useState<OrgInfo | null>(null)
-  const [config, setConfig]         = useState<IntegrationConfig>({})
-  const [loading, setLoading]       = useState(true)
+  const [users, setUsers]     = useState<AdminUser[]>([])
+  const [org, setOrg]         = useState<OrgInfo | null>(null)
+  const [config, setConfig]   = useState<IntegrationConfig>({})
+  const [loading, setLoading] = useState(true)
 
-  // Slack state
-  const [slackUrl, setSlackUrl]           = useState("")
-  const [slackSaving, setSlackSaving]     = useState(false)
-  const [slackTesting, setSlackTesting]   = useState(false)
-  const [slackResult, setSlackResult]     = useState<string | null>(null)
+  const [slackUrl, setSlackUrl]         = useState("")
+  const [slackSaving, setSlackSaving]   = useState(false)
+  const [slackTesting, setSlackTesting] = useState(false)
+  const [slackResult, setSlackResult]   = useState<string | null>(null)
 
-  // Linear state
-  const [linearKey, setLinearKey]         = useState("")
-  const [linearProject, setLinearProject] = useState("")
-  const [linearSaving, setLinearSaving]   = useState(false)
-  const [linearTesting, setLinearTesting] = useState(false)
-  const [linearResult, setLinearResult]   = useState<string | null>(null)
+  const [linearKey, setLinearKey]           = useState("")
+  const [linearProject, setLinearProject]   = useState("")
+  const [linearSaving, setLinearSaving]     = useState(false)
+  const [linearTesting, setLinearTesting]   = useState(false)
+  const [linearResult, setLinearResult]     = useState<string | null>(null)
 
-  // Custom vars state
-  const [newVarKey, setNewVarKey]     = useState("")
-  const [newVarValue, setNewVarValue] = useState("")
-  const [varSaving, setVarSaving]     = useState(false)
+  const [newVarKey, setNewVarKey]       = useState("")
+  const [newVarValue, setNewVarValue]   = useState("")
+  const [varSaving, setVarSaving]       = useState(false)
   const [revealedVars, setRevealedVars] = useState<Set<string>>(new Set())
+  const [userSearch, setUserSearch]     = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return }
@@ -198,64 +187,97 @@ export default function AdminPage() {
     })
   }
 
-  if (loading || status === "loading") return <div className="p-8 text-gray-400">Loading…</div>
+  if (loading || status === "loading") return <div className="loading-state">Loading…</div>
+
+  const filteredUsers = users.filter((u) => {
+    if (!userSearch.trim()) return true
+    const q = userSearch.toLowerCase()
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.department ?? "").toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q)
+    )
+  })
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-8 space-y-10">
+    <main className="page">
 
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6" style={{ marginBottom: 40 }}>
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Admin Panel</h1>
-          {org && <p className="text-sm text-gray-500 mt-0.5">{org.name}</p>}
+          <h1 className="page-title">Admin Panel</h1>
+          {org && <p style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>{org.name}</p>}
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-700">← Browse</Link>
       </div>
 
       {/* ── User Management ── */}
-      <section>
-        <SectionHeading>User Management</SectionHeading>
-        <p className="text-xs text-gray-400 mb-4">Role changes via <code className="bg-gray-100 px-1 rounded">POST /api/admin/users/[id]/role</code></p>
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+      <section className="page-section">
+        <h2 className="section-heading">User Management</h2>
+        <div className="input-row mb-4" style={{ marginBottom: 16 }}>
+          <input
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="Search by name, email, department, or role…"
+            className="input"
+          />
+          {userSearch && (
+            <button onClick={() => setUserSearch("")} className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="table-wrap table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Department</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Joined</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600 border-b border-gray-200">V1s</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600 border-b border-gray-200">Forks</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600 border-b border-gray-200">Avg ★</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Joined</th>
+                <th style={{ textAlign: "right" }}>V1s</th>
+                <th style={{ textAlign: "right" }}>Forks</th>
+                <th style={{ textAlign: "right" }}>Avg ★</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/profile/${u.id}`} className="font-medium text-gray-900 hover:underline">{u.name}</Link>
-                    <p className="text-xs text-gray-400">{u.email}</p>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <Link href={`/profile/${u.id}`} style={{ fontWeight: 500, color: "var(--text-1)", textDecoration: "none" }}
+                      onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline" }}
+                      onMouseOut={(e)  => { (e.currentTarget as HTMLElement).style.textDecoration = "none" }}
+                    >
+                      {u.name}
+                    </Link>
+                    <p style={{ fontSize: 11, color: "var(--text-3)", margin: "2px 0 0" }}>{u.email}</p>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_STYLES[u.role] ?? "bg-gray-100 text-gray-600"}`}>{u.role}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{u.department ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(u.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{u.stats.originals}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{u.stats.forks_made}</td>
-                  <td className="px-4 py-3 text-right text-gray-500">
+                  <td><span className={`badge ${roleClass(u.role)}`}>{u.role}</span></td>
+                  <td style={{ color: "var(--text-2)" }}>{u.department ?? "—"}</td>
+                  <td style={{ color: "var(--text-2)" }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td style={{ textAlign: "right", color: "var(--text-1)" }}>{u.stats.originals}</td>
+                  <td style={{ textAlign: "right", color: "var(--text-1)" }}>{u.stats.forks_made}</td>
+                  <td style={{ textAlign: "right", color: "var(--text-2)" }}>
                     {u.stats.total_ratings === 0 ? "—" : u.stats.avg_rating.toFixed(1)}
                   </td>
                 </tr>
               ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", color: "var(--text-3)", padding: "24px 16px" }}>
+                    No users match your search
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
       {/* ── Integrations ── */}
-      <section>
-        <SectionHeading>Integrations</SectionHeading>
-        <div className="space-y-4">
+      <section className="page-section">
+        <h2 className="section-heading">Integrations</h2>
+        <div className="stack" style={{ gap: 12 }}>
 
           {/* Slack */}
           <IntegrationBlock
@@ -267,7 +289,7 @@ export default function AdminPage() {
             }}
             onTest={() => testIntegration("slack", setSlackResult, setSlackTesting)}
           >
-            <SecretField label="Webhook URL" value={slackUrl} onChange={setSlackUrl} placeholder="https://hooks.slack.com/services/..." />
+            <SecretField label="Webhook URL" value={slackUrl} onChange={setSlackUrl} placeholder="https://hooks.slack.com/services/…" />
           </IntegrationBlock>
 
           {/* Linear */}
@@ -280,44 +302,64 @@ export default function AdminPage() {
             }}
             onTest={() => testIntegration("linear", setLinearResult, setLinearTesting)}
           >
-            <SecretField label="API Key" value={linearKey} onChange={setLinearKey} placeholder="lin_api_..." />
-            <div className="mt-2">
-              <label className="block text-xs text-gray-500 mb-1">Project ID</label>
+            <SecretField label="API Key" value={linearKey} onChange={setLinearKey} placeholder="lin_api_…" />
+            <div className="field">
+              <label className="field-label">Project ID</label>
               <input
-                value={linearProject} onChange={(e) => setLinearProject(e.target.value)}
-                placeholder="proj_..."
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                value={linearProject}
+                onChange={(e) => setLinearProject(e.target.value)}
+                placeholder="proj_…"
+                className="input"
               />
             </div>
           </IntegrationBlock>
 
           {/* Custom Variables */}
-          <div className="border border-gray-200 rounded-lg p-4 bg-white">
-            <p className="text-sm font-medium text-gray-700 mb-3">Custom Variables</p>
+          <div className="integ-block">
+            <p className="integ-title">Custom Variables</p>
             {Object.keys(config.custom_vars ?? {}).length === 0 ? (
-              <p className="text-xs text-gray-400 mb-3">No custom variables yet.</p>
+              <p style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 14 }}>No custom variables yet.</p>
             ) : (
-              <div className="space-y-2 mb-4">
+              <div className="stack" style={{ gap: 8, marginBottom: 16 }}>
                 {Object.entries(config.custom_vars ?? {}).map(([k, v]) => (
                   <div key={k} className="flex items-center gap-2">
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded flex-shrink-0">{k}</code>
-                    <span className="text-xs text-gray-500 flex-1 font-mono">
+                    <code style={{ fontSize: 12, fontFamily: "var(--font-mono)", background: "#f5f5f5", padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>
+                      {k}
+                    </code>
+                    <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-2)", flex: 1 }}>
                       {revealedVars.has(k) ? v : maskDisplay(v)}
                     </span>
-                    <button onClick={() => setRevealedVars((s) => { const n = new Set(s); if (n.has(k)) { n.delete(k) } else { n.add(k) }; return n })}
-                      className="text-xs text-gray-400 hover:text-gray-700">{revealedVars.has(k) ? "Hide" : "Show"}</button>
-                    <button onClick={() => deleteCustomVar(k)} className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                    <button
+                      onClick={() => setRevealedVars((s) => { const n = new Set(s); if (n.has(k)) { n.delete(k) } else { n.add(k) }; return n })}
+                      className="btn-ghost btn btn-sm"
+                    >
+                      {revealedVars.has(k) ? "Hide" : "Show"}
+                    </button>
+                    <button onClick={() => deleteCustomVar(k)} className="btn-danger-ghost">Delete</button>
                   </div>
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
-              <input value={newVarKey} onChange={(e) => setNewVarKey(e.target.value)} placeholder="KEY"
-                className="w-32 border border-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 font-mono" />
-              <input value={newVarValue} onChange={(e) => setNewVarValue(e.target.value)} placeholder="value"
-                className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900" />
-              <button onClick={saveCustomVar} disabled={varSaving || !newVarKey.trim()}
-                className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-700 disabled:opacity-50 transition">
+            <div className="input-row">
+              <input
+                value={newVarKey}
+                onChange={(e) => setNewVarKey(e.target.value)}
+                placeholder="KEY"
+                className="input input-mono"
+                style={{ width: 140, flex: "none" }}
+              />
+              <input
+                value={newVarValue}
+                onChange={(e) => setNewVarValue(e.target.value)}
+                placeholder="value"
+                className="input"
+              />
+              <button
+                onClick={saveCustomVar}
+                disabled={varSaving || !newVarKey.trim()}
+                className="btn btn-primary btn-sm"
+                style={{ flexShrink: 0 }}
+              >
                 {varSaving ? "Adding…" : "Add"}
               </button>
             </div>
@@ -326,43 +368,26 @@ export default function AdminPage() {
       </section>
 
       {/* ── Org Info ── */}
-      <section>
-        <SectionHeading>Org Info</SectionHeading>
+      <section className="page-section">
+        <h2 className="section-heading">Org Info</h2>
         {org && (
-          <dl className="space-y-2 text-sm">
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32">Name</dt>
-              <dd className="text-gray-900 font-medium">{org.name}</dd>
-            </div>
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32">Domain</dt>
-              <dd className="text-gray-700 font-mono">@{org.domain}</dd>
-            </div>
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32">Plan</dt>
-              <dd className="text-gray-700">{org.plan ?? "Free"}</dd>
-            </div>
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32">Created</dt>
-              <dd className="text-gray-700">{new Date(org.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</dd>
-            </div>
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32">Join policy</dt>
-              <dd className="text-gray-700">Open — anyone with @{org.domain} joins as member</dd>
-            </div>
-            <div className="flex gap-4">
-              <dt className="text-gray-500 w-32"></dt>
-              <dd className="text-xs text-gray-400 italic">Invite-only mode coming soon</dd>
-            </div>
+          <dl style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {[
+              ["Name",        org.name],
+              ["Domain",      `@${org.domain}`],
+              ["Plan",        org.plan ?? "Free"],
+              ["Created",     new Date(org.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })],
+              ["Join policy", `Open — anyone with @${org.domain} joins as member`],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: "flex", padding: "9px 0", borderBottom: "1px solid #f5f5f5" }}>
+                <dt style={{ width: 140, flexShrink: 0, fontSize: 13, color: "var(--text-2)" }}>{label}</dt>
+                <dd style={{ fontSize: 13, color: "var(--text-1)", margin: 0, fontFamily: label === "Domain" ? "var(--font-mono)" : undefined }}>{value}</dd>
+              </div>
+            ))}
           </dl>
         )}
       </section>
 
     </main>
   )
-}
-
-function maskDisplay(val: string) {
-  if (!val || val.length <= 4) return "****"
-  return "****" + val.slice(-4)
 }

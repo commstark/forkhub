@@ -1,7 +1,6 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 
@@ -9,10 +8,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { id: userId, orgId } = session.user
+  const { id: userId, orgId } = auth.user
   const toolId = params.id
 
   const body = await request.json()

@@ -1,15 +1,14 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data, error } = await supabaseServer
     .from("reviews")
@@ -25,7 +24,7 @@ export async function GET(
 
   // Verify tool belongs to user's org
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((data.tool as any)?.org_id !== session.user.orgId) {
+  if ((data.tool as any)?.org_id !== auth.user.orgId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 

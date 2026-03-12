@@ -1,21 +1,20 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data: tools, error } = await supabaseServer
     .from("tools")
     .select("id, title, description, category, classification, status, file_type, version_number, fork_count, rating_avg, rating_count, parent_tool_id, created_at")
     .eq("creator_id", params.id)
-    .eq("org_id", session.user.orgId)
+    .eq("org_id", auth.user.orgId)
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

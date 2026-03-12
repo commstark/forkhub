@@ -1,11 +1,11 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
+import { generatePreviewData } from "@/lib/preview-data"
 
 // SKILL.md note (do not build yet):
 // The AI agent is the gatekeeper for change_type.
@@ -20,10 +20,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { id: userId, orgId } = session.user
+  const { id: userId, orgId } = auth.user
 
   const formData = await request.formData()
   const classification    = formData.get("classification") as string
@@ -82,16 +82,20 @@ export async function POST(
   // Upload file
   const newToolId   = randomUUID()
   const storagePath = `${orgId}/${newToolId}/${file.name}`
+  const fileBuffer  = Buffer.from(await file.arrayBuffer())
 
   const { error: storageError } = await supabaseServer.storage
     .from("tool-files")
-    .upload(storagePath, await file.arrayBuffer(), { contentType: file.type, upsert: false })
+    .upload(storagePath, fileBuffer, { contentType: file.type, upsert: false })
 
   if (storageError) {
     return NextResponse.json({ error: "File upload failed", details: storageError.message }, { status: 500 })
   }
 
   const { data: { publicUrl } } = supabaseServer.storage.from("tool-files").getPublicUrl(storagePath)
+
+  // Generate preview data for supported file types
+  const previewData = await generatePreviewData(fileBuffer, file.name, file.type)
 
   const now   = new Date().toISOString()
   const title = titleOverride?.trim() || `${original.title} (Fork)`
@@ -114,6 +118,7 @@ export async function POST(
       file_size:      file.size,
       parent_tool_id: original.id,
       version_number: (original.version_number ?? 1) + 1,
+      preview_data:   previewData ?? null,
       created_at:     now,
       updated_at:     now,
     })

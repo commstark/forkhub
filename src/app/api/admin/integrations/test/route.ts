@@ -1,7 +1,6 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
 type CustomConfig = {
@@ -12,14 +11,14 @@ type CustomConfig = {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (auth.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { type } = await request.json()
 
   const { data } = await supabaseServer
-    .from("orgs").select("custom_config").eq("id", session.user.orgId).single()
+    .from("orgs").select("custom_config").eq("id", auth.user.orgId).single()
   const config: CustomConfig = (data as { custom_config?: CustomConfig } | null)?.custom_config ?? {}
 
   if (type === "slack") {
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: "✅ ForkHub integration test — connected successfully." }),
+        body: JSON.stringify({ text: "✅ The Fork Hub integration test — connected successfully." }),
       })
       if (!res.ok) return NextResponse.json({ error: `Slack returned ${res.status}` }, { status: 400 })
       return NextResponse.json({ success: true, message: "Test message sent to Slack" })

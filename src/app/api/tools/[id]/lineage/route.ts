@@ -1,7 +1,6 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
 type LineageNode = {
@@ -13,11 +12,11 @@ type LineageNode = {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Walk up the ancestor chain from current tool to root (max 20 to prevent loops)
   const chain: LineageNode[] = []
@@ -30,7 +29,7 @@ export async function GET(
       .from("tools")
       .select("id, title, version_number, parent_tool_id, creator:users!creator_id(name)")
       .eq("id", currentId)
-      .eq("org_id", session.user.orgId)
+      .eq("org_id", auth.user.orgId)
       .single()
 
     if (result.error || !result.data) break

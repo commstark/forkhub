@@ -1,18 +1,17 @@
 import "server-only"
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { NextRequest, NextResponse } from "next/server"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+export async function GET(request: NextRequest) {
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (auth.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { data: users, error } = await supabaseServer
     .from("users")
     .select("id, name, email, avatar_url, role, department, created_at")
-    .eq("org_id", session.user.orgId)
+    .eq("org_id", auth.user.orgId)
     .order("created_at", { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -23,7 +22,8 @@ export async function GET() {
   const { data: tools } = await supabaseServer
     .from("tools")
     .select("id, creator_id, parent_tool_id")
-    .eq("org_id", session.user.orgId)
+    .eq("org_id", auth.user.orgId)
+    .eq("status", "approved")
 
   const toolsByUser = new Map<string, { id: string; parent_tool_id: string | null }[]>()
   for (const t of tools ?? []) {

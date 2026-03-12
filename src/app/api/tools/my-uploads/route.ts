@@ -1,17 +1,16 @@
 import "server-only"
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { NextRequest, NextResponse } from "next/server"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function GET(request: NextRequest) {
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data: tools, error } = await supabaseServer
     .from("tools")
     .select("id, title, description, category, classification, status, file_type, file_name, file_size, version_number, rating_avg, rating_count, created_at")
-    .eq("creator_id", session.user.id)
+    .eq("creator_id", auth.user.id)
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: "Failed to fetch tools" }, { status: 500 })

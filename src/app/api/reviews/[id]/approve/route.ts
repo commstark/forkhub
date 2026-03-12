@@ -1,7 +1,6 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 
@@ -9,10 +8,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  if (!["reviewer", "admin"].includes(session.user.role)) {
+  if (!["reviewer", "admin"].includes(auth.user.role)) {
     return NextResponse.json({ error: "Requires reviewer or admin role" }, { status: 403 })
   }
 
@@ -28,19 +27,19 @@ export async function POST(
     .single()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!review || (review.tool as any)?.org_id !== session.user.orgId) {
+  if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
   await Promise.all([
     supabaseServer.from("reviews").update({
-      status: "approved", notes, reviewer_id: session.user.id, reviewed_at: now,
+      status: "approved", notes, reviewer_id: auth.user.id, reviewed_at: now,
     }).eq("id", params.id),
     supabaseServer.from("tools").update({ status: "approved", updated_at: now }).eq("id", review.tool_id),
   ])
 
   await writeAuditLog({
-    orgId: session.user.orgId, userId: session.user.id,
+    orgId: auth.user.orgId, userId: auth.user.id,
     action: "tool.approved", targetType: "review", targetId: params.id,
     metadata: { tool_id: review.tool_id, notes },
   })

@@ -1,7 +1,6 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 
@@ -17,28 +16,6 @@ type CustomConfig = {
   custom_vars?: Record<string, string>
 }
 
-function maskValue(val: string): string {
-  if (!val || val.length <= 4) return "****"
-  return "****" + val.slice(-4)
-}
-
-function maskConfig(config: CustomConfig): CustomConfig {
-  const masked: CustomConfig = { ...config, integrations: {}, custom_vars: {} }
-  const integ = config.integrations ?? {}
-  if (integ.slack?.webhook_url) {
-    masked.integrations!.slack = { webhook_url: maskValue(integ.slack.webhook_url) }
-  }
-  if (integ.linear?.api_key || integ.linear?.project_id) {
-    masked.integrations!.linear = {
-      api_key:    integ.linear.api_key    ? maskValue(integ.linear.api_key)    : undefined,
-      project_id: integ.linear.project_id ? maskValue(integ.linear.project_id) : undefined,
-    }
-  }
-  for (const [k, v] of Object.entries(config.custom_vars ?? {})) {
-    masked.custom_vars![k] = maskValue(v)
-  }
-  return masked
-}
 
 async function getConfig(orgId: string): Promise<CustomConfig> {
   const { data } = await supabaseServer
@@ -46,22 +23,22 @@ async function getConfig(orgId: string): Promise<CustomConfig> {
   return (data as { custom_config?: CustomConfig } | null)?.custom_config ?? {}
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+export async function GET(request: NextRequest) {
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (auth.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const config = await getConfig(session.user.orgId)
-  return NextResponse.json(maskConfig(config))
+  const config = await getConfig(auth.user.orgId)
+  return NextResponse.json(config)
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (session.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (auth.user.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
-  const config = await getConfig(session.user.orgId)
+  const config = await getConfig(auth.user.orgId)
 
   // Merge update
   if (body.integration === "slack") {
@@ -80,14 +57,14 @@ export async function POST(request: NextRequest) {
   }
 
   const { error } = await supabaseServer
-    .from("orgs").update({ custom_config: config }).eq("id", session.user.orgId)
+    .from("orgs").update({ custom_config: config }).eq("id", auth.user.orgId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await writeAuditLog({
-    orgId: session.user.orgId, userId: session.user.id,
-    action: "org.integrations_updated", targetType: "org", targetId: session.user.orgId,
+    orgId: auth.user.orgId, userId: auth.user.id,
+    action: "org.integrations_updated", targetType: "org", targetId: auth.user.orgId,
     metadata: { integration: body.integration },
   })
 
-  return NextResponse.json({ success: true, config: maskConfig(config) })
+  return NextResponse.json({ success: true, config })
 }

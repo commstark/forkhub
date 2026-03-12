@@ -1,12 +1,11 @@
 import "server-only"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await getAuth(request)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status") ?? "approved"
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
   // When there's a query, use the search_tools RPC for ilike + trigram similarity ordering
   if (q) {
     const { data, error } = await supabaseServer.rpc("search_tools", {
-      p_org_id: session.user.orgId,
+      p_org_id: auth.user.orgId,
       p_query: q,
       p_status: status,
       p_category: category,
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
   let query = supabaseServer
     .from("tools")
     .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, creator:users!creator_id(name, avatar_url)")
-    .eq("org_id", session.user.orgId)
+    .eq("org_id", auth.user.orgId)
     .eq("status", status)
 
   if (category) query = query.eq("category", category)

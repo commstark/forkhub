@@ -21,19 +21,6 @@ type ReviewItem = {
   } | null
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending:           "bg-yellow-100 text-yellow-800",
-  approved:          "bg-green-100 text-green-800",
-  rejected:          "bg-red-100 text-red-800",
-  changes_requested: "bg-orange-100 text-orange-800",
-}
-
-const CLASSIFICATION_STYLES: Record<string, string> = {
-  internal_noncustomer: "bg-blue-100 text-blue-700",
-  internal_customer:    "bg-purple-100 text-purple-700",
-  external_customer:    "bg-orange-100 text-orange-700",
-}
-
 const TABS = [
   { value: "pending",           label: "Pending" },
   { value: "changes_requested", label: "Changes Requested" },
@@ -41,6 +28,21 @@ const TABS = [
   { value: "rejected",          label: "Rejected" },
   { value: "all",               label: "All" },
 ]
+
+function classificationClass(c: string) {
+  if (c === "internal_noncustomer") return "badge-nc"
+  if (c === "internal_customer")    return "badge-ic"
+  if (c === "external_customer")    return "badge-ec"
+  return "badge-neutral"
+}
+
+function statusClass(s: string) {
+  if (s === "approved")          return "badge-approved"
+  if (s === "rejected")          return "badge-rejected"
+  if (s === "changes_requested") return "badge-changes"
+  if (s === "pending")           return "badge-pending"
+  return "badge-neutral"
+}
 
 export default function ReviewQueuePage() {
   const [reviews, setReviews] = useState<ReviewItem[]>([])
@@ -57,26 +59,22 @@ export default function ReviewQueuePage() {
   }, [activeTab])
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-8">
+    <main className="page">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Review Queue</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All tools pending security review in your org</p>
+          <h1 className="page-title">Review Queue</h1>
+          <p style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
+            Security reviews for your organization
+          </p>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-700">← Browse</Link>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6">
+      <div className="tabs">
         {TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition -mb-px ${
-              activeTab === tab.value
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
+            className={`tab${activeTab === tab.value ? " active" : ""}`}
           >
             {tab.label}
           </button>
@@ -84,53 +82,55 @@ export default function ReviewQueuePage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <div className="loading-state tab-content" key={activeTab + "-loading"}>Loading…</div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-1">No reviews found</p>
-          <p className="text-sm">Nothing in this queue right now</p>
+        <div className="empty-state tab-content" key={activeTab + "-empty"}>
+          <p className="empty-state-title">No reviews found</p>
+          <p className="empty-state-desc">Nothing in this queue right now</p>
         </div>
       ) : (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+        <div className="table-wrap table-scroll tab-content" key={activeTab}>
+          <table className="data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Tool</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Classification</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">File type</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Creator</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Submitted</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600 border-b border-gray-200">Status</th>
+                <th>Tool</th>
+                <th>Classification</th>
+                <th>File type</th>
+                <th>Creator</th>
+                <th>Submitted</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {reviews.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/review/${r.id}`)}>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">
-                      {r.tool?.title ?? "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                <tr key={r.id} className="clickable" onClick={() => router.push(`/review/${r.id}`)}>
+                  <td style={{ fontWeight: 500 }}>{r.tool?.title ?? "—"}</td>
+                  <td>
                     {r.tool?.classification && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CLASSIFICATION_STYLES[r.tool.classification] ?? "bg-gray-100 text-gray-600"}`}>
+                      <span className={`badge ${classificationClass(r.tool.classification)}`}>
                         {r.tool.classification.replace(/_/g, " ")}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{r.tool?.file_type ?? "—"}</td>
-                  <td className="px-4 py-3">
+                  <td className="font-mono" style={{ color: "var(--text-2)" }}>{r.tool?.file_type ?? "—"}</td>
+                  <td>
                     {r.tool?.creator_id ? (
-                      <Link href={`/profile/${r.tool.creator_id}`} onClick={(e) => e.stopPropagation()} className="text-gray-600 hover:underline">
+                      <Link
+                        href={`/profile/${r.tool.creator_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: "var(--text-2)", textDecoration: "none", fontSize: 13 }}
+                        onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline" }}
+                        onMouseOut={(e)  => { (e.currentTarget as HTMLElement).style.textDecoration = "none" }}
+                      >
                         {r.tool.creator?.name ?? "—"}
                       </Link>
                     ) : (
-                      <span className="text-gray-600">{r.tool?.creator?.name ?? "—"}</span>
+                      <span style={{ color: "var(--text-2)" }}>{r.tool?.creator?.name ?? "—"}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(r.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[r.status] ?? "bg-gray-100 text-gray-700"}`}>
+                  <td style={{ color: "var(--text-2)" }}>{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <span className={`badge ${statusClass(r.status)}`}>
                       {r.status.replace(/_/g, " ")}
                     </span>
                   </td>

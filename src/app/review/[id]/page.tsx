@@ -6,8 +6,6 @@ import dynamic from "next/dynamic"
 
 const SecurityDoc = dynamic(() => import("@/components/SecurityDoc"), { ssr: false })
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type Tool = {
   id: string; title: string; description: string; classification: string
   file_type: string; file_name: string; file_size: number; category: string
@@ -25,29 +23,31 @@ type Review = {
   reviewer: { name: string; avatar_url: string | null } | null
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const STATUS_STYLES: Record<string, string> = {
-  pending:           "bg-yellow-100 text-yellow-800",
-  approved:          "bg-green-100 text-green-800",
-  rejected:          "bg-red-100 text-red-800",
-  changes_requested: "bg-orange-100 text-orange-800",
+function classificationClass(c: string) {
+  if (c === "internal_noncustomer") return "badge-nc"
+  if (c === "internal_customer")    return "badge-ic"
+  if (c === "external_customer")    return "badge-ec"
+  return "badge-neutral"
 }
 
-const CLASSIFICATION_STYLES: Record<string, string> = {
-  internal_noncustomer: "bg-blue-100 text-blue-700",
-  internal_customer:    "bg-purple-100 text-purple-700",
-  external_customer:    "bg-orange-100 text-orange-700",
+function statusClass(s: string) {
+  if (s === "approved")          return "badge-approved"
+  if (s === "rejected")          return "badge-rejected"
+  if (s === "changes_requested") return "badge-changes"
+  if (s === "pending")           return "badge-pending"
+  return "badge-neutral"
 }
-
-// ─── HTML Preview (same ClawStore pattern as tool detail) ─────────────────────
 
 function HtmlPreview({ toolId, expanded, onToggle }: { toolId: string; expanded: boolean; onToggle: () => void }) {
   return (
     <div style={expanded ? { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: "#fff", padding: 24 } : {}}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#999" }}>Live preview</span>
-        <div onClick={onToggle} style={{ width: 12, height: 12, borderRadius: "50%", background: "#28CA41", cursor: "pointer" }} title={expanded ? "Minimize" : "Expand fullscreen"} />
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-3)" }}>Live preview</span>
+        <div
+          onClick={onToggle}
+          style={{ width: 12, height: 12, borderRadius: "50%", background: "#28CA41", cursor: "pointer" }}
+          title={expanded ? "Minimize" : "Expand fullscreen"}
+        />
       </div>
       <iframe
         src={`/preview/${toolId}`}
@@ -60,32 +60,30 @@ function HtmlPreview({ toolId, expanded, onToggle }: { toolId: string; expanded:
 }
 
 function ToolPreview({ tool, expanded, onToggle }: { tool: Tool; expanded: boolean; onToggle: () => void }) {
-  const name = tool.file_name.toLowerCase()
-  const isHtml = tool.file_type === "text/html" || name.endsWith(".html")
+  const name    = tool.file_name.toLowerCase()
+  const isHtml  = tool.file_type === "text/html" || name.endsWith(".html")
   const isImage = tool.file_type?.startsWith("image/")
 
-  if (isHtml)  return <HtmlPreview toolId={tool.id} expanded={expanded} onToggle={onToggle} />
+  if (isHtml) return <HtmlPreview toolId={tool.id} expanded={expanded} onToggle={onToggle} />
   if (isImage) return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white flex items-center justify-center min-h-48">
+    <div className="card card-pad" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 192 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/api/tools/${tool.id}/file`} alt={tool.file_name} className="max-h-96 max-w-full object-contain" />
+      <img src={`/api/tools/${tool.id}/file`} alt={tool.file_name} style={{ maxHeight: 384, maxWidth: "100%", objectFit: "contain" }} />
     </div>
   )
   return (
-    <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-sm text-gray-500 text-center">
-      <p className="font-medium text-gray-700 mb-1">{tool.file_name}</p>
-      <p className="text-xs text-gray-400">{tool.file_type} · Preview available on tool detail page</p>
-      <Link href={`/tool/${tool.id}`} className="text-xs text-gray-500 underline mt-2 inline-block">Open tool detail →</Link>
+    <div className="card card-pad" style={{ textAlign: "center", color: "var(--text-2)" }}>
+      <p style={{ fontWeight: 500, marginBottom: 4 }}>{tool.file_name}</p>
+      <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 8 }}>{tool.file_type} · Preview on tool detail page</p>
+      <Link href={`/tool/${tool.id}`} style={{ fontSize: 12, color: "var(--text-2)", textDecoration: "underline" }}>Open tool detail →</Link>
     </div>
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function ReviewDetailPage({ params }: { params: { id: string } }) {
-  const [review, setReview] = useState<Review | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [review, setReview]           = useState<Review | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [notFound, setNotFound]       = useState(false)
   const [previewExpanded, setPreviewExpanded] = useState(false)
 
   useEffect(() => {
@@ -95,123 +93,129 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       .catch(() => { setNotFound(true); setLoading(false) })
   }, [params.id])
 
-  if (loading)           return <div className="p-8 text-gray-400">Loading…</div>
-  if (notFound || !review) return <div className="p-8 text-gray-500">Review not found.</div>
+  if (loading)             return <div className="loading-state">Loading…</div>
+  if (notFound || !review) return <div className="loading-state">Review not found.</div>
 
   const tool = review.tool
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+    <main className="page-narrow">
 
-      {/* Back */}
-      <div className="flex items-center gap-4">
-        <Link href="/review" className="text-sm text-gray-400 hover:text-gray-700">← Review queue</Link>
-        {tool && <Link href={`/tool/${tool.id}`} className="text-sm text-gray-400 hover:text-gray-700">View tool page →</Link>}
+      <div className="flex gap-4 mb-6">
+        <Link href="/review" className="back-link" style={{ marginBottom: 0 }}>← Review queue</Link>
+        {tool && (
+          <Link href={`/tool/${tool.id}`} style={{ fontSize: 13, color: "var(--text-3)", textDecoration: "none" }}
+            onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-1)" }}
+            onMouseOut={(e)  => { (e.currentTarget as HTMLElement).style.color = "var(--text-3)" }}
+          >
+            View tool →
+          </Link>
+        )}
       </div>
 
-      {/* ── Review Header ── */}
-      <section>
+      {/* Header */}
+      <section className="page-section">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1">
-              {tool?.title ?? "—"}
-              {tool && <span className="text-gray-400 font-normal text-lg ml-2">V{tool.version_number ?? 1}</span>}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm mb-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2" style={{ flexWrap: "wrap" }}>
+              <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-1)", letterSpacing: "-0.02em", margin: 0 }}>
+                {tool?.title ?? "—"}
+              </h1>
+              {tool && <span className="ver-pill">V{tool.version_number ?? 1}</span>}
+            </div>
+            <div className="flex items-center gap-2 mb-2" style={{ flexWrap: "wrap" }}>
               {tool?.creator && (
-                <span className="text-gray-500">by <span className="text-gray-700">{tool.creator.name}</span></span>
+                <span style={{ fontSize: 13, color: "var(--text-2)" }}>
+                  by <span style={{ color: "var(--text-1)" }}>{tool.creator.name}</span>
+                </span>
               )}
               {tool?.classification && (
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CLASSIFICATION_STYLES[tool.classification] ?? "bg-gray-100 text-gray-600"}`}>
+                <span className={`badge ${classificationClass(tool.classification)}`}>
                   {tool.classification.replace(/_/g, " ")}
                 </span>
               )}
-              {tool?.category && (
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{tool.category}</span>
-              )}
-              {tool?.file_type && (
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{tool.file_type}</span>
-              )}
+              {tool?.category   && <span className="tag">{tool.category}</span>}
+              {tool?.file_type  && <span className="tag tag-mono">{tool.file_type}</span>}
             </div>
-            {tool?.description && <p className="text-sm text-gray-600">{tool.description}</p>}
+            {tool?.description && (
+              <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.6 }}>{tool.description}</p>
+            )}
           </div>
-          <div className="flex-shrink-0 text-right">
-            <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${STATUS_STYLES[review.status] ?? "bg-gray-100 text-gray-700"}`}>
+          <div className="flex-shrink-0" style={{ textAlign: "right" }}>
+            <span className={`badge ${statusClass(review.status)}`} style={{ fontSize: 12, padding: "4px 10px" }}>
               {review.status.replace(/_/g, " ")}
             </span>
-            <p className="text-xs text-gray-400 mt-1">Submitted {new Date(review.created_at).toLocaleDateString()}</p>
+            <p style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6 }}>
+              Submitted {new Date(review.created_at).toLocaleDateString()}
+            </p>
             {review.reviewed_at && (
-              <p className="text-xs text-gray-400">Reviewed {new Date(review.reviewed_at).toLocaleDateString()}</p>
+              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+                Reviewed {new Date(review.reviewed_at).toLocaleDateString()}
+              </p>
             )}
           </div>
         </div>
       </section>
 
-      {/* ── Preview ── */}
+      {/* Preview */}
       {tool && (
-        <section>
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Preview</h2>
+        <section className="page-section">
+          <p className="section-title">Preview</p>
           <ToolPreview tool={tool} expanded={previewExpanded} onToggle={() => setPreviewExpanded((v) => !v)} />
         </section>
       )}
 
-      {/* ── Reviewer Notes ── */}
+      {/* Reviewer notes */}
       {review.notes && (
-        <section>
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Reviewer Notes</h2>
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <p className="text-sm text-gray-700 leading-relaxed">{review.notes}</p>
+        <section className="page-section">
+          <p className="section-title">Reviewer Notes</p>
+          <div className="notes-box">
+            <p style={{ margin: 0 }}>{review.notes}</p>
             {review.reviewer && (
-              <p className="text-xs text-gray-400 mt-2">— {review.reviewer.name}{review.reviewed_at ? `, ${new Date(review.reviewed_at).toLocaleDateString()}` : ""}</p>
+              <p style={{ fontSize: 12, color: "var(--text-3)", marginTop: 8, marginBottom: 0 }}>
+                — {review.reviewer.name}
+                {review.reviewed_at ? `, ${new Date(review.reviewed_at).toLocaleDateString()}` : ""}
+              </p>
             )}
           </div>
         </section>
       )}
 
-      {/* ── Fork Review Header (only for forks) ── */}
+      {/* Fork banner */}
       {review.security_doc?.change_summary && (
-        <section>
-          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-amber-700 bg-amber-200 px-2 py-0.5 rounded">
-                Fork Review
-              </span>
-              {review.security_doc.parent_version_number != null && (
-                <span className="text-sm font-medium text-amber-800">
-                  — Changes from V{review.security_doc.parent_version_number}
-                  {review.security_doc.parent_tool_title && (
-                    <span className="font-normal"> of &ldquo;{review.security_doc.parent_tool_title}&rdquo;</span>
-                  )}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-amber-900 leading-relaxed">{review.security_doc.change_summary}</p>
+        <section className="page-section">
+          <div className="fork-banner">
+            <div className="fork-banner-label">Fork Review</div>
+            {review.security_doc.parent_version_number != null && (
+              <p style={{ fontSize: 13, fontWeight: 500, color: "#78350f", margin: "0 0 4px" }}>
+                Changes from V{review.security_doc.parent_version_number}
+                {review.security_doc.parent_tool_title && ` of "${review.security_doc.parent_tool_title}"`}
+              </p>
+            )}
+            <p className="fork-banner-text">{review.security_doc.change_summary}</p>
           </div>
         </section>
       )}
 
-      {/* ── Security Document ── */}
-      <section>
-        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Security Review Document</h2>
-        <p className="text-xs text-gray-400 mb-4">
-          Submitted via POST /api/reviews/{review.id}/security-doc
-        </p>
-        <div className="border border-gray-200 rounded-lg p-6 bg-white">
+      {/* Security doc */}
+      <section className="page-section">
+        <p className="section-title">Security Review Document</p>
+        <div className="card card-pad-lg">
           <SecurityDoc doc={review.security_doc ?? {}} />
         </div>
       </section>
 
-      {/* ── Original Security Doc (fork reference) ── */}
+      {/* Original security doc (fork reference) */}
       {review.security_doc?.parent_security_doc && (
-        <section>
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">
+        <section className="page-section">
+          <p className="section-title">
             Original V{review.security_doc.parent_version_number ?? "?"} Security Doc
-            <span className="normal-case font-normal text-gray-400"> (Reference)</span>
-          </h2>
-          <p className="text-xs text-gray-400 mb-4">
-            The original tool&apos;s approved security document for comparison.
+            <span style={{ fontWeight: 400, textTransform: "none", color: "var(--text-3)", marginLeft: 6 }}>(Reference)</span>
           </p>
-          <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 opacity-80">
+          <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+            The original tool's approved security document for comparison.
+          </p>
+          <div className="card card-pad-lg" style={{ opacity: 0.75 }}>
             <SecurityDoc doc={review.security_doc.parent_security_doc} />
           </div>
         </section>

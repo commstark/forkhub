@@ -11,12 +11,15 @@ type AuditAction =
   | "tool.rated"
   | "tool.minor_update"
   | "tool.changes_requested"
+  | "tool.sharing_changed"
   | "user.role_changed"
   | "review.completed"
   | "org.settings_updated"
   | "org.integrations_updated"
+  | "api_key.created"
+  | "api_key.revoked"
 
-type AuditTargetType = "tool" | "user" | "review" | "org"
+type AuditTargetType = "tool" | "user" | "review" | "org" | "api_key"
 
 interface WriteAuditLogParams {
   orgId: string
