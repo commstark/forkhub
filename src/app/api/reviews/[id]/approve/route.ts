@@ -23,7 +23,7 @@ export async function POST(
   // Verify review exists and belongs to user's org via tool
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, tool:tools!tool_id(id, org_id, title)")
+    .select("id, tool_id, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
@@ -46,9 +46,10 @@ export async function POST(
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toolTitle = (review.tool as any)?.title ?? "Unknown"
+  const t = review.tool as any
   notifySlack(auth.user.orgId, slackMessages.approved(
-    toolTitle, auth.user.name ?? auth.user.email ?? "Unknown", notes, review.tool_id
+    t?.title ?? "Unknown", auth.user.name ?? auth.user.email ?? "Unknown",
+    t?.classification ?? "", notes, review.tool_id
   ))
 
   return NextResponse.json({ success: true })

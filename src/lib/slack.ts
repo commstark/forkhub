@@ -31,47 +31,39 @@ export function notifySlack(orgId: string, payload: object): void {
 const base = process.env.NEXTAUTH_URL ?? ""
 
 export const slackMessages = {
-  submitted: (title: string, creatorName: string, classification: string, fileType: string) => ({
-    text: "🔍 New tool submitted for review",
-    blocks: [{
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*New Tool for Review*\n*Title:* ${title}\n*Creator:* ${creatorName}\n*Classification:* ${classification}\n*Type:* ${fileType}\n\n<${base}/review|View in Review Queue>`,
-      },
-    }],
+  submitted: (title: string, creator: string, classification: string) => ({
+    title,
+    creator,
+    classification,
+    status: "Submitted for review",
+    notes: "",
+    url: `${base}/review`,
   }),
 
-  approved: (title: string, reviewerName: string, notes: string | null, toolId: string) => ({
-    text: "✅ Tool approved",
-    blocks: [{
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `✅ *Tool Approved*\n*Title:* ${title}\n*Reviewer:* ${reviewerName}\n*Notes:* ${notes ?? "—"}\n\n<${base}/tool/${toolId}|View Tool>`,
-      },
-    }],
+  approved: (title: string, creator: string, classification: string, notes: string | null, toolId: string) => ({
+    title,
+    creator,
+    classification,
+    status: "Approved",
+    notes: notes ?? "",
+    url: `${base}/tool/${toolId}`,
   }),
 
-  rejected: (title: string, reviewerName: string, notes: string) => ({
-    text: "❌ Tool rejected",
-    blocks: [{
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `❌ *Tool Rejected*\n*Title:* ${title}\n*Reviewer:* ${reviewerName}\n*Reason:* ${notes}`,
-      },
-    }],
+  rejected: (title: string, creator: string, classification: string, notes: string) => ({
+    title,
+    creator,
+    classification,
+    status: "Rejected",
+    notes,
+    url: "",
   }),
 
-  changesRequested: (title: string, reviewerName: string, notes: string) => ({
-    text: "🔄 Changes requested",
-    blocks: [{
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `🔄 *Changes Requested*\n*Title:* ${title}\n*Reviewer:* ${reviewerName}\n*Feedback:* ${notes}`,
-      },
-    }],
+  changesRequested: (title: string, creator: string, classification: string, notes: string) => ({
+    title,
+    creator,
+    classification,
+    status: "Changes requested",
+    notes,
+    url: "",
   }),
 }

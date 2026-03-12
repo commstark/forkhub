@@ -24,7 +24,7 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, tool:tools!tool_id(id, org_id, title)")
+    .select("id, tool_id, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
@@ -47,9 +47,10 @@ export async function POST(
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toolTitle = (review.tool as any)?.title ?? "Unknown"
+  const t = review.tool as any
   notifySlack(auth.user.orgId, slackMessages.rejected(
-    toolTitle, auth.user.name ?? auth.user.email ?? "Unknown", notes
+    t?.title ?? "Unknown", auth.user.name ?? auth.user.email ?? "Unknown",
+    t?.classification ?? "", notes
   ))
 
   return NextResponse.json({ success: true })
