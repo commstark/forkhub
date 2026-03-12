@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       metadata: { title, classification, change_type: changeType } })
 
     notifySlack(orgId, slackMessages.submitted(
-      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, review?.id ?? ""
+      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, review?.id ?? "", securityDoc
     ))
 
     return NextResponse.json({
