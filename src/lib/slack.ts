@@ -31,13 +31,13 @@ export function notifySlack(orgId: string, payload: object): void {
 const base = process.env.NEXTAUTH_URL ?? ""
 
 export const slackMessages = {
-  submitted: (title: string, creator: string, classification: string) => ({
+  submitted: (title: string, creator: string, classification: string, reviewId: string) => ({
     title,
     creator,
     classification,
     status: "Submitted for review",
     notes: "",
-    url: `${base}/review`,
+    url: `${base}/review/${reviewId}`,
   }),
 
   approved: (title: string, creator: string, classification: string, notes: string | null, toolId: string) => ({

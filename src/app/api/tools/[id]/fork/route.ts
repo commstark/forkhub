@@ -190,7 +190,7 @@ export async function POST(
     reviewId = review?.id ?? null
 
     notifySlack(orgId, slackMessages.submitted(
-      title, auth.user.name ?? auth.user.email ?? "Unknown", classification
+      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, reviewId ?? ""
     ))
   }
 
