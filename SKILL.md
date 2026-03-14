@@ -11,6 +11,8 @@ description: "Use this skill when interacting with The ForkHub — the corporate
 Upload:          POST  /api/tools/upload
 Fork/Update:     POST  /api/tools/{id}/fork
 Patch Metadata:  PATCH /api/tools/{id}
+Resubmit:        POST  /api/tools/{id}/resubmit
+Review History:  GET   /api/tools/{id}/review-history
 Browse:          GET   /api/tools?status=approved&q=...
 Tool Detail:     GET   /api/tools/{id}
 Rate:            POST /api/tools/{id}/rate
@@ -123,6 +125,42 @@ POST /api/tools/{your_tool_id}/fork
 ```
 
 See FORKING section for details.
+
+---
+
+## RESUBMITTING / UPDATING A TOOL'S FILE
+
+To replace the file on an existing tool without creating a new version:
+
+```
+POST /api/tools/{id}/resubmit
+Content-Type: multipart/form-data
+
+Required: file, change_description
+Optional: description, security_doc
+```
+
+- Same tool ID, same URL, same live URL — only the file changes
+- Old files are preserved in storage (versioned path) for audit trail
+- `internal_noncustomer` → auto-approved immediately
+- `internal_customer` / `external_customer` → goes back to `in_review`, new review record created
+- Old review records are never deleted — full history is preserved
+- `change_description` appears at the top of the new review so reviewers see what changed
+
+**Use resubmit when:** fixing bugs, updating content, responding to reviewer feedback — same tool, better version.
+**Use fork when:** creating a variation for a different purpose or customer — new tool, different use case.
+
+## REVIEW HISTORY
+
+Every tool tracks its full review history. When a tool goes through multiple rounds (submit → changes requested → resubmit → approved), all rounds are preserved.
+
+```
+GET /api/tools/{id}/review-history
+```
+
+Returns all review records in chronological order. Each record includes the reviewer's notes, security doc, and the `change_description` from resubmission.
+
+The review detail page shows this as a visual timeline so reviewers see the full back-and-forth without losing context.
 
 ---
 

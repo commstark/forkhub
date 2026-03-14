@@ -11,6 +11,7 @@ type AuditAction =
   | "tool.rated"
   | "tool.minor_update"
   | "tool.changes_requested"
+  | "tool.resubmitted"
   | "tool.metadata_updated"
   | "tool.sharing_changed"
   | "user.role_changed"
