@@ -1,0 +1,22 @@
+{
+  "name": "@forkhub/mcp-server",
+  "version": "1.0.0",
+  "description": "ForkHub MCP server for Claude Code",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "forkhub-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
