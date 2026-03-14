@@ -41,6 +41,23 @@ export async function GET(request: NextRequest) {
       creator: { name: creator_name, avatar_url: creator_avatar_url },
     }))
 
+    // Fallback: if trigram RPC returned nothing, try a broader ilike search
+    if (tools.length === 0) {
+      let fallback = supabaseServer
+        .from("tools")
+        .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, creator:users!creator_id(name, avatar_url)")
+        .eq("org_id", auth.user.orgId)
+        .eq("status", status)
+        .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+
+      if (category) fallback = fallback.eq("category", category)
+      if (classification) fallback = fallback.eq("classification", classification)
+      if (fileType) fallback = fallback.eq("file_type", fileType)
+
+      const { data: fallbackData } = await fallback
+      tools = fallbackData ?? []
+    }
+
     // Apply version filters post-search (RPC doesn't support version params)
     if (minVersion) tools = tools.filter((t: { version_number?: number }) => (t.version_number ?? 1) >= minVersion)
     if (exactVersion) tools = tools.filter((t: { version_number?: number }) => (t.version_number ?? 1) === exactVersion)
