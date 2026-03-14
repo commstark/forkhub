@@ -139,19 +139,12 @@ function CollapsibleDoc({ doc, defaultOpen }: { doc: Record<string, unknown>; de
   )
 }
 
-function ReviewTimeline({ history, currentReviewId, creatorName }: {
+function ReviewTimeline({ history, creatorName }: {
   history: ReviewHistory
-  currentReviewId: string
   creatorName: string | null
 }) {
   const reviews = history.reviews
   const total   = reviews.length
-
-  const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {}
-    reviews.forEach((r, i) => { init[r.id] = i === total - 1 })
-    return init
-  })
 
   if (total === 0) return null
 
@@ -232,7 +225,7 @@ function ReviewTimeline({ history, currentReviewId, creatorName }: {
                 {r.security_doc && (
                   <CollapsibleDoc
                     doc={r.security_doc}
-                    defaultOpen={expandedDocs[r.id] ?? isLatest}
+                    defaultOpen={isLatest}
                   />
                 )}
               </div>
@@ -378,7 +371,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       {history && history.reviews.length > 0 && (
         <ReviewTimeline
           history={history}
-          currentReviewId={review.id}
           creatorName={creatorName}
         />
       )}
