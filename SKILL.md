@@ -8,10 +8,11 @@ description: "Use this skill when interacting with The ForkHub — the corporate
 ## QUICK REFERENCE
 
 ```
-Upload:          POST /api/tools/upload
-Fork/Update:     POST /api/tools/{id}/fork
-Browse:          GET  /api/tools?status=approved&q=...
-Tool Detail:     GET  /api/tools/{id}
+Upload:          POST  /api/tools/upload
+Fork/Update:     POST  /api/tools/{id}/fork
+Patch Metadata:  PATCH /api/tools/{id}
+Browse:          GET   /api/tools?status=approved&q=...
+Tool Detail:     GET   /api/tools/{id}
 Rate:            POST /api/tools/{id}/rate
 Share:           POST /api/tools/{id}/sharing
 Live URL:        GET  /live/{id}  (public if sharing=link)
@@ -99,9 +100,21 @@ Optional: security_doc (JSON string — REQUIRED for internal_customer and exter
 
 ---
 
-## UPDATING AN EXISTING TOOL
+## UPDATING TOOL METADATA (no new version)
 
-No separate patch/update endpoint. To update an approved tool:
+For non-file changes (title typo, description update, category change):
+
+```
+PATCH /api/tools/{id}
+Body: {"title": "new title", "description": "new description", "category": "new category"}
+```
+
+- Only title, description, and category can be patched
+- Only the tool creator or an admin can patch
+- Tool must be approved (use normal upload/fork flow for drafts)
+- Any change to the file, classification, or security posture requires a fork (new version)
+
+## UPDATING AN EXISTING TOOL (file or logic changes)
 
 **Fork your own tool.** Creates a new version (V2, V3, etc.) with full audit trail.
 
