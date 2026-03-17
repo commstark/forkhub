@@ -820,7 +820,7 @@ export default function AdminPage() {
       <section className="page-section">
         <h2 className="section-heading">Distribute to Your Team</h2>
         <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 16 }}>
-          Share the ForkHub skill with your team so they can upload tools directly from Claude Code.
+          Share the ForkHub skill with your team so they can upload tools directly from their AI coding tool.
           The download is pre-configured with this deployment&apos;s URL.
         </p>
         <a

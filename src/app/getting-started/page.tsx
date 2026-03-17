@@ -16,8 +16,8 @@ export default function GettingStartedPage() {
           0. Set Up Your Environment
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 20 }}>
-          The fastest way to use ForkHub is with Claude Code. Download the ForkHub skill file and
-          add it to Claude Code so you can upload and manage tools directly from your terminal.
+          The fastest way to use ForkHub is with an AI coding tool. Download the ForkHub skill file and
+          add it to your AI coding tool so you can upload and manage tools directly from your terminal.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 20 }}>
           {[
@@ -28,8 +28,8 @@ export default function GettingStartedPage() {
             },
             {
               num: "2",
-              title: "Add to Claude Code",
-              desc: 'Place SKILL.md in your ~/.claude/skills/ folder. Claude Code picks it up automatically.',
+              title: "Add to your AI coding tool",
+              desc: 'Place SKILL.md in your ~/.claude/skills/ folder. Your AI coding tool picks it up automatically.',
             },
             {
               num: "3",
@@ -256,7 +256,7 @@ export default function GettingStartedPage() {
         </div>
 
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
-          When uploading through Claude Code, answers to stage questions can be pre-filled via the{" "}
+          When uploading through an AI coding tool, answers to stage questions can be pre-filled via the{" "}
           <code style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3, border: "1px solid var(--border-default)" }}>stage_responses</code>{" "}
           field in the upload request. Reviewers see them pre-populated and can edit before deciding.
         </p>
@@ -324,7 +324,7 @@ export default function GettingStartedPage() {
                 },
                 {
                   title: "Custom Questions Per Stage",
-                  desc: "Add a custom_questions array to any stage. Reviewers answer these when making their decision. Uploaders using Claude Code can pre-fill the answers.",
+                  desc: "Add a custom_questions array to any stage. Reviewers answer these when making their decision. Uploaders using an AI coding tool can pre-fill the answers.",
                 },
               ].map((item) => (
                 <div key={item.title} style={{

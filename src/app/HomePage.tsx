@@ -179,7 +179,7 @@ export default function HomePage() {
                 { icon: "📋", title: "Security Questionnaire", desc: "Claude reads the code and fills out the security doc before it reaches your team. Reviewers see real context." },
                 { icon: "🏷️", title: "Classification Routing", desc: "Internal and customer-facing tools automatically go to the right review stages." },
                 { icon: "📄", title: "Any File Format", desc: "HTML tools, Python scripts, JSON configs — ForkHub accepts and previews them all." },
-                { icon: "🔑", title: "API-First", desc: "Full REST API for CI/CD integration. A Claude Code skill is included for direct uploads from the terminal." },
+                { icon: "🔑", title: "API-First", desc: "Full REST API for CI/CD integration. A skill file is included for direct uploads from your AI coding tool." },
                 { icon: "👥", title: "Role-Based Access", desc: "Members, reviewers, and admins each have scoped permissions." },
               ].map((feat) => (
                 <div key={feat.title} style={{
