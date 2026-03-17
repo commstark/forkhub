@@ -7,6 +7,7 @@ import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { generatePreviewData } from "@/lib/preview-data"
 import { computeApplicableStages } from "@/lib/review-pipeline"
+import { safeStorageFilename } from "@/lib/storage-path"
 
 export async function POST(
   request: NextRequest,
@@ -47,7 +48,7 @@ export async function POST(
   }
 
   // Upload new file to versioned path — keeps old files in storage for audit
-  const storagePath = `${orgId}/${params.id}/v${Date.now()}/${file.name}`
+  const storagePath = `${orgId}/${params.id}/v${Date.now()}/${safeStorageFilename(file.name)}`
   const fileBuffer  = Buffer.from(await file.arrayBuffer())
 
   const { error: storageError } = await supabaseServer.storage

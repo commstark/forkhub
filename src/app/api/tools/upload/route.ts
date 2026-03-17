@@ -9,6 +9,7 @@ import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
 import { computeApplicableStages } from "@/lib/review-pipeline"
 import { sendEmail, toolSubmittedEmail } from "@/lib/email"
+import { safeStorageFilename } from "@/lib/storage-path"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
   }
 
   const toolId      = randomUUID()
-  const storagePath = `${orgId}/${toolId}/${file.name}`
+  const storagePath = `${orgId}/${toolId}/${safeStorageFilename(file.name)}`
 
   const fileBuffer = Buffer.from(await file.arrayBuffer())
 

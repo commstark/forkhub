@@ -9,6 +9,7 @@ import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
 import { computeApplicableStages } from "@/lib/review-pipeline"
 import { sendEmail, toolForkedEmail } from "@/lib/email"
+import { safeStorageFilename } from "@/lib/storage-path"
 
 // SKILL.md note (do not build yet):
 // The AI agent is the gatekeeper for change_type.
@@ -95,7 +96,7 @@ export async function POST(
 
   // Upload file
   const newToolId   = randomUUID()
-  const storagePath = `${orgId}/${newToolId}/${file.name}`
+  const storagePath = `${orgId}/${newToolId}/${safeStorageFilename(file.name)}`
   const fileBuffer  = Buffer.from(await file.arrayBuffer())
 
   const { error: storageError } = await supabaseServer.storage
