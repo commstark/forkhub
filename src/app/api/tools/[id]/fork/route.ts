@@ -7,6 +7,7 @@ import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
+import { computeApplicableStages } from "@/lib/review-pipeline"
 
 // SKILL.md note (do not build yet):
 // The AI agent is the gatekeeper for change_type.
@@ -68,16 +69,27 @@ export async function POST(
     return NextResponse.json({ error: "Can only fork approved tools" }, { status: 400 })
   }
 
-  // Determine routing
+  // Determine routing — compute pipeline stages to support auto-approve when none apply
   const isMinorChange = changeType === "minor_change"
-  const needsReview   = !isMinorChange &&
+  let needsReview = !isMinorChange &&
     (classification === "internal_customer" || classification === "external_customer")
 
   let status: string
+  let stageIds: string[] = []
+  let firstStageId: string | null = null
+
   if (isMinorChange || classification === "internal_noncustomer") {
     status = "approved"
   } else {
-    status = "in_review"
+    const applicableStages = await computeApplicableStages(orgId, classification)
+    stageIds = applicableStages.map((s) => s.id)
+    firstStageId = stageIds[0] ?? null
+    if (stageIds.length === 0) {
+      status = "approved"
+      needsReview = false
+    } else {
+      status = "in_review"
+    }
   }
 
   // Upload file
@@ -182,7 +194,14 @@ export async function POST(
 
     const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")
-      .insert({ tool_id: newToolId, status: "pending", security_doc: forkSecurityDoc, created_at: now })
+      .insert({
+        tool_id:           newToolId,
+        status:            "pending",
+        security_doc:      forkSecurityDoc,
+        applicable_stages: stageIds,
+        current_stage_id:  firstStageId,
+        created_at:        now,
+      })
       .select("id")
       .single()
 

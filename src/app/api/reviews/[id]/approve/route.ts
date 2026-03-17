@@ -33,6 +33,18 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
+  // Stage role verification: non-admins must match the stage's assigned_role
+  if (review.current_stage_id && auth.user.role !== "admin") {
+    const { data: stageRole } = await supabaseServer
+      .from("review_stages")
+      .select("assigned_role")
+      .eq("id", review.current_stage_id)
+      .single()
+    if (stageRole?.assigned_role && auth.user.role !== stageRole.assigned_role) {
+      return NextResponse.json({ error: `This stage requires role: ${stageRole.assigned_role}` }, { status: 403 })
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const t = review.tool as any
 

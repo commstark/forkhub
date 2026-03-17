@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
+import { useSession } from "next-auth/react"
 
 const SecurityDoc = dynamic(() => import("@/components/SecurityDoc"), { ssr: false })
 
@@ -14,13 +15,34 @@ type Tool = {
   creator_id: string
 }
 
+type CustomQuestion = { id: string; question: string; required: boolean }
+
+type StageObject = {
+  id: string; name: string; stage_order: number; assigned_role: string
+  custom_questions: CustomQuestion[]
+  applies_to_classifications: string[]
+}
+
+type StageAction = {
+  id: string; stage_id: string; action: string; notes: string | null
+  stage_answers: Record<string, string> | null
+  created_at: string
+  actor: { name: string; avatar_url: string | null } | null
+}
+
 type Review = {
   id: string; status: string; notes: string | null
   created_at: string; reviewed_at: string | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   security_doc: Record<string, any> | null
+  current_stage_id: string | null
+  applicable_stages: string[] | null
+  stage_responses: Record<string, string> | null
   tool: Tool | null
   reviewer: { name: string; avatar_url: string | null } | null
+  current_stage: StageObject | null
+  stage_actions: StageAction[]
+  applicable_stage_objects: StageObject[]
 }
 
 type HistoryReview = {
@@ -139,6 +161,318 @@ function CollapsibleDoc({ doc, defaultOpen }: { doc: Record<string, unknown>; de
   )
 }
 
+// ── Pipeline Progress Bar ─────────────────────────────────────────────────────
+function PipelineProgress({
+  stages,
+  currentStageId,
+  stageActions,
+  reviewStatus,
+}: {
+  stages: StageObject[]
+  currentStageId: string | null
+  stageActions: StageAction[]
+  reviewStatus: string
+}) {
+  if (stages.length === 0) return null
+
+  const isFullyApproved = reviewStatus === "approved"
+  const completedStageIds = new Set(
+    stageActions.filter((a) => a.action === "approved").map((a) => a.stage_id)
+  )
+
+  return (
+    <section className="page-section">
+      <p className="section-title">Review Pipeline</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
+        {stages.map((stage, i) => {
+          const isCurrent   = stage.id === currentStageId && !isFullyApproved
+          const isCompleted = completedStageIds.has(stage.id) || (isFullyApproved)
+
+          const dotBg = isCompleted ? "#16a34a" : isCurrent ? "#b45309" : "#d1d5db"
+          const textColor = isCurrent ? "var(--text-1)" : isCompleted ? "#16a34a" : "var(--text-3)"
+
+          return (
+            <div key={stage.id} style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: dotBg,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: isCurrent ? `0 0 0 3px ${dotBg}33` : "none",
+                  border: isCurrent ? `2px solid ${dotBg}` : "2px solid transparent",
+                  flexShrink: 0,
+                }}>
+                  {isCompleted ? (
+                    <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                  ) : (
+                    <span style={{ color: isCurrent ? "#fff" : "#9ca3af", fontSize: 11, fontWeight: 600 }}>{i + 1}</span>
+                  )}
+                </div>
+                <div style={{ textAlign: "center", maxWidth: 80 }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: isCurrent ? 600 : 400, color: textColor, lineHeight: 1.3 }}>
+                    {stage.name}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 10, color: "var(--text-3)", marginTop: 1 }}>
+                    {stage.assigned_role}
+                  </p>
+                </div>
+              </div>
+              {i < stages.length - 1 && (
+                <div style={{
+                  width: 32, height: 2, margin: "0 4px",
+                  marginBottom: 20,
+                  background: isCompleted ? "#16a34a" : "#e5e7eb",
+                  flexShrink: 0,
+                }} />
+              )}
+            </div>
+          )
+        })}
+        {isFullyApproved && (
+          <>
+            <div style={{ width: 32, height: 2, margin: "0 4px", marginBottom: 20, background: "#16a34a", flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: "#16a34a",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>✓</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#16a34a", textAlign: "center", maxWidth: 60 }}>
+                Approved
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Stage action history */}
+      {stageActions.length > 0 && (
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
+          {stageActions.map((action) => {
+            const matchedStage = stages.find((s) => s.id === action.stage_id)
+            const colors = ReviewerBadgeColor(action.action === "changes_requested" ? "changes_requested" : action.action)
+            const actionLabel = action.action === "approved" ? "Approved" : action.action === "rejected" ? "Rejected" : "Changes Requested"
+            return (
+              <div key={action.id} style={{
+                display: "flex", alignItems: "flex-start", gap: 8,
+                padding: "8px 12px", borderRadius: 6,
+                background: colors.bg, border: `1px solid ${colors.color}22`,
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: colors.color, minWidth: 90, marginTop: 1 }}>
+                  {matchedStage?.name ?? "Stage"}
+                </span>
+                <span style={{ fontSize: 11, color: colors.color }}>
+                  {actionLabel}{action.actor ? ` by ${action.actor.name}` : ""} · {fmt(action.created_at)}
+                </span>
+                {action.notes && (
+                  <span style={{ fontSize: 11, color: colors.color, opacity: 0.8, marginLeft: 4 }}>
+                    — &ldquo;{action.notes}&rdquo;
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Current Stage Questions + Action Buttons ─────────────────────────────────
+function ActionPanel({
+  reviewId,
+  reviewStatus,
+  currentStage,
+  stageResponses,
+  userRole,
+  onActionComplete,
+}: {
+  reviewId: string
+  reviewStatus: string
+  currentStage: StageObject | null
+  stageResponses: Record<string, string> | null
+  userRole: string
+  onActionComplete: () => void
+}) {
+  const [actionMode, setActionMode] = useState<"approve" | "changes" | "reject" | null>(null)
+  const [notes, setNotes]           = useState("")
+  const [answers, setAnswers]       = useState<Record<string, string>>(stageResponses ?? {})
+  const [submitting, setSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const canAct = reviewStatus === "pending" && (userRole === "reviewer" || userRole === "admin")
+  if (!canAct) return null
+
+  const questions = currentStage?.custom_questions ?? []
+
+  async function submit() {
+    if (!actionMode) return
+    if ((actionMode === "changes" || actionMode === "reject") && !notes.trim()) {
+      setActionError("Notes are required when requesting changes or rejecting.")
+      return
+    }
+    setSubmitting(true)
+    setActionError(null)
+
+    const endpoint =
+      actionMode === "approve"  ? `/api/reviews/${reviewId}/approve` :
+      actionMode === "changes"  ? `/api/reviews/${reviewId}/request-changes` :
+                                  `/api/reviews/${reviewId}/reject`
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes || null, stage_answers: answers }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setActionError(data.error ?? "Action failed")
+        setSubmitting(false)
+        return
+      }
+      onActionComplete()
+    } catch {
+      setActionError("Network error — please try again")
+      setSubmitting(false)
+    }
+  }
+
+  const actionColors: Record<string, { bg: string; border: string; color: string }> = {
+    approve:  { bg: "#f0fdf4", border: "#16a34a", color: "#15803d" },
+    changes:  { bg: "#fffbeb", border: "#d97706", color: "#92400e" },
+    reject:   { bg: "#fef2f2", border: "#dc2626", color: "#b91c1c" },
+  }
+
+  return (
+    <section className="page-section">
+      <p className="section-title">
+        {currentStage ? `${currentStage.name} — Your Decision` : "Review Decision"}
+      </p>
+
+      {/* Stage questions */}
+      {questions.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Stage Questions
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {questions.map((q) => (
+              <div key={q.id}>
+                <label style={{ fontSize: 13, color: "var(--text-1)", display: "block", marginBottom: 4 }}>
+                  {q.question}{q.required && <span style={{ color: "#dc2626", marginLeft: 2 }}>*</span>}
+                </label>
+                <textarea
+                  value={answers[q.id] ?? ""}
+                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  rows={2}
+                  placeholder={answers[q.id] ? "" : "Enter your answer…"}
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 6,
+                    border: "1px solid var(--border)", fontSize: 13,
+                    background: answers[q.id] ? "#f0fdf4" : "var(--bg-card)",
+                    color: "var(--text-1)", resize: "vertical",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!actionMode && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setActionMode("approve")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #16a34a", background: "#f0fdf4", color: "#15803d", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            Approve
+          </button>
+          <button
+            onClick={() => setActionMode("changes")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d97706", background: "#fffbeb", color: "#92400e", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            Request Changes
+          </button>
+          <button
+            onClick={() => setActionMode("reject")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #dc2626", background: "#fef2f2", color: "#b91c1c", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            Reject
+          </button>
+        </div>
+      )}
+
+      {/* Confirmation form */}
+      {actionMode && (
+        <div style={{
+          padding: 16, borderRadius: 8,
+          background: actionColors[actionMode].bg,
+          border: `1px solid ${actionColors[actionMode].border}44`,
+        }}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: actionColors[actionMode].color }}>
+            {actionMode === "approve"  ? "Confirm Approval" :
+             actionMode === "changes"  ? "Request Changes" :
+                                         "Confirm Rejection"}
+          </p>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder={
+              actionMode === "approve"
+                ? "Optional notes for the creator…"
+                : "Required: explain what needs to change… (required)"
+            }
+            style={{
+              width: "100%", padding: "8px 10px", borderRadius: 6,
+              border: `1px solid ${actionColors[actionMode].border}66`,
+              fontSize: 13, background: "#fff", color: "var(--text-1)",
+              resize: "vertical", marginBottom: 10,
+              boxSizing: "border-box",
+            }}
+          />
+          {actionError && (
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#dc2626" }}>{actionError}</p>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={submit}
+              disabled={submitting}
+              style={{
+                padding: "8px 18px", borderRadius: 6,
+                border: `1px solid ${actionColors[actionMode].border}`,
+                background: actionColors[actionMode].border,
+                color: "#fff", fontSize: 13, fontWeight: 600,
+                cursor: submitting ? "default" : "pointer",
+                opacity: submitting ? 0.6 : 1,
+              }}
+            >
+              {submitting ? "Submitting…" : (
+                actionMode === "approve"  ? "Confirm Approve" :
+                actionMode === "changes"  ? "Send for Changes" :
+                                            "Confirm Reject"
+              )}
+            </button>
+            <button
+              onClick={() => { setActionMode(null); setActionError(null); setNotes("") }}
+              disabled={submitting}
+              style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-2)", fontSize: 13, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Review History Timeline ───────────────────────────────────────────────────
 function ReviewTimeline({ history, creatorName }: {
   history: ReviewHistory
   creatorName: string | null
@@ -271,18 +605,18 @@ function ReviewTimeline({ history, creatorName }: {
 }
 
 export default function ReviewDetailPage({ params }: { params: { id: string } }) {
+  const { data: session } = useSession()
   const [review, setReview]           = useState<Review | null>(null)
   const [history, setHistory]         = useState<ReviewHistory | null>(null)
   const [loading, setLoading]         = useState(true)
   const [notFound, setNotFound]       = useState(false)
   const [previewExpanded, setPreviewExpanded] = useState(false)
 
-  useEffect(() => {
+  const loadReview = useCallback(() => {
     fetch(`/api/reviews/${params.id}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json() })
       .then((data: Review) => {
         setReview(data)
-        // Fetch full review history for this tool
         if (data.tool?.id) {
           fetch(`/api/tools/${data.tool.id}/review-history`)
             .then((r) => r.ok ? r.json() : null)
@@ -294,11 +628,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       .catch(() => { setNotFound(true); setLoading(false) })
   }, [params.id])
 
+  useEffect(() => { loadReview() }, [loadReview])
+
   if (loading)             return <div className="loading-state">Loading…</div>
   if (notFound || !review) return <div className="loading-state">Review not found.</div>
 
   const tool        = review.tool
   const creatorName = tool?.creator?.name ?? history?.tool.creator?.name ?? null
+  const userRole    = session?.user?.role ?? "member"
 
   return (
     <main className="page-narrow">
@@ -359,6 +696,16 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </div>
       </section>
 
+      {/* Pipeline Progress */}
+      {review.applicable_stage_objects.length > 0 && (
+        <PipelineProgress
+          stages={review.applicable_stage_objects}
+          currentStageId={review.current_stage_id}
+          stageActions={review.stage_actions}
+          reviewStatus={review.status}
+        />
+      )}
+
       {/* Preview */}
       {tool && (
         <section className="page-section">
@@ -414,6 +761,16 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           </div>
         </section>
       )}
+
+      {/* Action Panel — shown to reviewers/admins for pending reviews */}
+      <ActionPanel
+        reviewId={review.id}
+        reviewStatus={review.status}
+        currentStage={review.current_stage}
+        stageResponses={review.stage_responses}
+        userRole={userRole}
+        onActionComplete={loadReview}
+      />
 
     </main>
   )

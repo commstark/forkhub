@@ -62,11 +62,28 @@ export async function POST(
 
   const previewData = await generatePreviewData(fileBuffer, file.name, file.type)
 
-  // Determine new status
+  // Determine new status — compute pipeline stages to allow auto-approve if none apply
   const previousStatus  = tool.status
   const previousFileUrl = tool.file_url
-  const needsReview     = tool.classification === "internal_customer" || tool.classification === "external_customer"
-  const newStatus       = needsReview ? "in_review" : "approved"
+  const classificationNeedsReview = tool.classification === "internal_customer" || tool.classification === "external_customer"
+  let needsReview = classificationNeedsReview
+  let newStatus: string
+  let stageIds: string[] = []
+  let firstStageId: string | null = null
+
+  if (classificationNeedsReview) {
+    const applicableStages = await computeApplicableStages(orgId, tool.classification)
+    stageIds = applicableStages.map((s) => s.id)
+    firstStageId = stageIds[0] ?? null
+    if (stageIds.length === 0) {
+      newStatus = "approved"
+      needsReview = false
+    } else {
+      newStatus = "in_review"
+    }
+  } else {
+    newStatus = "approved"
+  }
 
   const updates: Record<string, unknown> = {
     file_url:     publicUrl,
@@ -103,10 +120,6 @@ export async function POST(
 
     // change_description at top level so reviewers see what changed at a glance
     securityDoc = { change_description: changeDescription, ...securityDoc }
-
-    const applicableStages = await computeApplicableStages(orgId, tool.classification)
-    const stageIds         = applicableStages.map((s) => s.id)
-    const firstStageId     = stageIds[0] ?? null
 
     const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")

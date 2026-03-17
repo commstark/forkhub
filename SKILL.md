@@ -92,7 +92,10 @@ Content-Type: multipart/form-data
 
 Required: title, description, category, classification, file
 Optional: security_doc (JSON string — REQUIRED for internal_customer and external_customer)
+Optional: stage_responses (JSON string — pre-fill answers to review stage questions)
 ```
+
+`stage_responses` format: `{"q1": "No PII stored", "q2": "Uses Stripe API"}` — keys match `id` fields in stage's `custom_questions`. Pre-populates answers for reviewers on the review page.
 
 ### Workflow:
 1. Analyze code
@@ -101,8 +104,10 @@ Optional: security_doc (JSON string — REQUIRED for internal_customer and exter
 4. If `internal_customer` or `external_customer`:
    a. Tell user: "This requires security review. Analyzing code for the security questionnaire — may take a moment."
    b. Fill out complete security_doc (see format below)
-   c. Upload with security_doc in same request
-   d. Tell user: "Submitted for security review. Track status on your profile at /profile or review queue at /review."
+   c. Check `GET /api/admin/review-stages` for stage custom_questions — if any, pre-fill stage_responses
+   d. Upload with security_doc (and stage_responses if applicable) in same request
+   e. **Auto-approve shortcut**: If org has NO review stages configured for this classification, the tool is auto-approved even for customer classifications.
+   f. Tell user: "Submitted for security review. Track status on your profile at /profile or review queue at /review."
 
 ---
 
@@ -362,7 +367,11 @@ DELETE /api/admin/review-stages/{id}
 
 Stages are ordered by `stage_order`. When a tool is submitted for review, the pipeline computes which stages apply to its classification and routes through them in order. Approving a stage advances to the next; the tool is only marked `approved` after the final stage clears.
 
+**Auto-approve**: If no stages apply to a classification (either no stages exist, or all stages exclude that classification), the tool is auto-approved even for `internal_customer` and `external_customer`. Great for orgs still setting up their pipeline.
+
 `applies_to_classifications`: empty array = stage applies to all. Use `["external_customer"]` to create a stage that only fires for customer-facing tools.
+
+**Role routing**: Each stage has an `assigned_role` (`reviewer` or `admin`). Non-admin reviewers only see reviews in the queue at stages matching their role. Approve/reject/request-changes return 403 if the user's role doesn't match the current stage's `assigned_role` (admins bypass this check).
 
 ### Review Action Response Fields
 Approve, reject, and request-changes all accept an optional `stage_answers` object:
@@ -374,6 +383,11 @@ Body: {
 }
 ```
 `stage_answers` keys match the `id` fields in the stage's `custom_questions`.
+
+### Review Queue — Stage Info
+`GET /api/reviews` now returns enriched reviews with:
+- `stage_info`: string like `"Stage 2 of 3: Legal Review"` (null if no pipeline)
+- `current_stage`: `{id, name, stage_order, assigned_role}` object or null
 
 ---
 

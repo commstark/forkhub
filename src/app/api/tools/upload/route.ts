@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
   const file           = formData.get("file") as File
   const parentToolId      = formData.get("parent_tool_id") as string | null
   const changeType        = (formData.get("change_type") as string | null) ?? "major_change"
-  const securityDocRaw    = formData.get("security_doc") as string | null
+  const securityDocRaw       = formData.get("security_doc") as string | null
+  const stageResponsesRaw    = formData.get("stage_responses") as string | null
 
   if (!title || !description || !category || !classification || !file) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -69,14 +70,18 @@ export async function POST(request: NextRequest) {
   // Generate preview data for supported file types
   const previewData = await generatePreviewData(fileBuffer, file.name, file.type)
 
-  // Determine status
+  // Determine status — compute pipeline stages first so we can auto-approve if none apply
   let status: string
-  if (isMinorUpdate) {
-    status = "approved"
-  } else if (classification === "internal_noncustomer") {
+  let stageIds: string[] = []
+  let firstStageId: string | null = null
+
+  if (isMinorUpdate || classification === "internal_noncustomer") {
     status = "approved"
   } else {
-    status = "in_review"
+    const applicableStages = await computeApplicableStages(orgId, classification)
+    stageIds = applicableStages.map((s) => s.id)
+    firstStageId = stageIds[0] ?? null
+    status = stageIds.length > 0 ? "in_review" : "approved"
   }
 
   const now = new Date().toISOString()
@@ -126,9 +131,10 @@ export async function POST(request: NextRequest) {
       securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
     }
 
-    const applicableStages = await computeApplicableStages(orgId, classification)
-    const stageIds         = applicableStages.map((s) => s.id)
-    const firstStageId     = stageIds[0] ?? null
+    let stageResponses: Record<string, string> | null = null
+    if (stageResponsesRaw) {
+      try { stageResponses = JSON.parse(stageResponsesRaw) } catch { /* ignore invalid JSON */ }
+    }
 
     const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")
@@ -138,6 +144,7 @@ export async function POST(request: NextRequest) {
         security_doc:      securityDoc,
         applicable_stages: stageIds,
         current_stage_id:  firstStageId,
+        stage_responses:   stageResponses,
         created_at:        now,
       })
       .select("id")
