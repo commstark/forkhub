@@ -67,7 +67,11 @@
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* prevent horizontal scroll from any overflow */
+}
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -76,6 +80,7 @@ body {
   line-height: 1.5;
   margin: 0;
   padding: 0;
+  min-width: 320px;
 }
 a { color: inherit; }
 
@@ -109,12 +114,14 @@ a { color: inherit; }
 
 /* ─── Layout ─────────────────────────────────────────────────────────────── */
 .page {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 32px 24px 80px;
   animation: page-enter 250ms ease-out forwards;
 }
 .page-narrow {
+  width: 100%;
   max-width: 840px;
   margin: 0 auto;
   padding: 32px 24px 80px;
@@ -516,15 +523,9 @@ a { color: inherit; }
 .loading-state     { padding: 64px 24px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
 /* ─── Grid ───────────────────────────────────────────────────────────────── */
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  max-width: calc(3 * 380px + 2 * 16px); /* ~1172px — caps card width at ~380px */
-  margin-left: auto;
-  margin-right: auto;
-}
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+/* minmax(0, 1fr) prevents grid blowout from nowrap content (badges, tags) */
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .stack  { display: flex; flex-direction: column; gap: 10px; }
 
 /* ─── Collapsible ────────────────────────────────────────────────────────── */
@@ -824,7 +825,14 @@ a { color: inherit; }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
-.catalog-filters { margin-bottom: 28px; }
+.catalog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  min-width: 0; /* prevent flex container from overflowing parent */
+}
 
 /* ─── Command Palette ────────────────────────────────────────────────────── */
 @keyframes cmd-enter {
@@ -1011,20 +1019,14 @@ a { color: inherit; }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 1199px) {
-  .grid-3 {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: calc(2 * 380px + 1 * 16px); /* ~776px */
-  }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sdoc-controls-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
-  .grid-3 {
-    grid-template-columns: 1fr;
-    max-width: 380px;
-  }
+  .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .grid-3, .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .page, .page-narrow { padding: 24px 16px 60px; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
   .stat-cell:nth-child(2) { border-right: none; }

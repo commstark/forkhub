@@ -363,7 +363,7 @@ export default function BrowsePage() {
       </div>
 
       {/* Filters row with count + view toggle */}
-      <div className="catalog-filters flex gap-2 flex-wrap items-center">
+      <div className="catalog-filters">
         <Select
           value={filters.category}
           onChange={(v) => setFilter("category", v)}
@@ -439,7 +439,7 @@ export default function BrowsePage() {
 
       {/* Active filter pills */}
       {activeFilters.length > 0 && (
-        <div className="flex gap-2 flex-wrap items-center" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 12 }}>
           {activeFilters.map(({ key, label }) => (
             <FilterPill
               key={key}
