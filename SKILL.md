@@ -91,23 +91,26 @@ POST /api/tools/upload
 Content-Type: multipart/form-data
 
 Required: title, description, category, classification, file
-Optional: security_doc (JSON string — REQUIRED for internal_customer and external_customer)
-Optional: stage_responses (JSON string — pre-fill answers to review stage questions)
+Optional: security_doc    (JSON string — REQUIRED for internal_customer and external_customer)
+Optional: stage_responses (JSON string — pre-fill stage question answers keyed by stage then question)
 ```
-
-`stage_responses` format: `{"q1": "No PII stored", "q2": "Uses Stripe API"}` — keys match `id` fields in stage's `custom_questions`. Pre-populates answers for reviewers on the review page.
 
 ### Workflow:
 1. Analyze code
 2. Determine classification (see rules above)
-3. If `internal_noncustomer` → upload without security_doc. Auto-approved.
-4. If `internal_customer` or `external_customer`:
-   a. Tell user: "This requires security review. Analyzing code for the security questionnaire — may take a moment."
-   b. Fill out complete security_doc (see format below)
-   c. Check `GET /api/admin/review-stages` for stage custom_questions — if any, pre-fill stage_responses
-   d. Upload with security_doc (and stage_responses if applicable) in same request
-   e. **Auto-approve shortcut**: If org has NO review stages configured for this classification, the tool is auto-approved even for customer classifications.
-   f. Tell user: "Submitted for security review. Track status on your profile at /profile or review queue at /review."
+3. **If `internal_noncustomer`** → upload without security_doc. Auto-approved. Done.
+4. **If `internal_customer` or `external_customer`**:
+   a. Tell user: "This requires security review. Checking pipeline stages and analyzing code — may take a moment."
+   b. Fetch `GET /api/admin/review-stages` to get the org's pipeline
+   c. Filter to stages that apply to this classification (where `applies_to_classifications` is `[]` OR includes the classification)
+   d. **If NO stages match** → upload without stage_responses. Will auto-approve (no pipeline configured for this classification). Tell user: "Uploaded and auto-approved — no review stages are configured for this classification." Done.
+   e. **If stages match**:
+      - Tell user: "This tool will go through N review stage(s): [Stage 1 Name] → [Stage 2 Name] → …"
+      - Fill out the complete security_doc (see SECURITY DOC FORMAT below)
+      - For each matching stage's `custom_questions`, analyze the tool code and write a concrete answer to each question
+      - Build stage_responses (see format below)
+      - Upload with both `security_doc` and `stage_responses` in the same request
+      - Tell user: "Submitted for security review. Track status at /profile or /review."
 
 ---
 
@@ -237,6 +240,57 @@ Only the tool creator or admin can change sharing. Tool must be approved.
 
 ---
 
+## REVIEW PIPELINE
+
+Every org can configure an ordered sequence of review stages. Stages fire in order for each tool — approving one advances to the next, and the tool is only marked `approved` after the final stage clears.
+
+**Always fetch stages before uploading a customer-classified tool.** The pipeline determines whether review is required at all and what questions reviewers will ask.
+
+```
+GET /api/admin/review-stages
+```
+
+Returns all stages ordered by `stage_order`. Each stage has:
+- `id` — use as key in stage_responses
+- `name` — human label (e.g. "Security Review", "Legal Sign-off")
+- `applies_to_classifications` — empty array = fires for all; otherwise only for listed classifications
+- `assigned_role` — which role can act on this stage (`reviewer` or `admin`)
+- `custom_questions` — array of `{id, question, required}` the reviewer must answer
+
+### Example pipeline
+
+| Stage | Name | Applies to |
+|---|---|---|
+| 1 | Security Review | all classifications |
+| 2 | Legal Sign-off | `external_customer` only |
+| 3 | Team Lead Approval | `external_customer` only |
+
+- `internal_customer` tool → hits **1 stage** (Security Review only)
+- `external_customer` tool → hits **3 stages** (Security → Legal → Team Lead)
+
+### stage_responses format
+
+Build a nested object keyed by **stage ID**, then by **question ID**:
+
+```json
+{
+  "a1b2c3d4-stage-uuid": {
+    "q1": "No PII is stored — tool only displays anonymized aggregate data",
+    "q2": "External API: Stripe (read-only, charges list endpoint)"
+  },
+  "e5f6g7h8-stage-uuid": {
+    "legal-q1": "No customer contracts reference this tool",
+    "legal-q2": "No GDPR-regulated data is processed"
+  }
+}
+```
+
+Submit this as the `stage_responses` form field (JSON-stringified). Reviewers see your answers pre-filled on the review page — they can edit before submitting their decision.
+
+**Answer quality matters.** Reviewers will judge from your answers. Be specific: reference actual function names, variable names, and API endpoints from the code. Vague answers ("it seems safe") will likely trigger changes-requested.
+
+---
+
 ## SECURITY DOC FORMAT
 
 Fill every field based on code analysis.
@@ -303,6 +357,16 @@ Fill every field based on code analysis.
     "approval_recommendation": "APPROVE / CONDITIONAL / REJECT",
     "conditions": ["..."],
     "residual_risks": ["..."]
+  }
+}
+```
+
+The `stage_responses` is submitted as a **separate** `stage_responses` form field (not inside security_doc), using the nested format described in the REVIEW PIPELINE section:
+
+```json
+{
+  "[stage-id]": {
+    "[question-id]": "Your answer derived from code analysis"
   }
 }
 ```
@@ -400,9 +464,11 @@ Body: {
 
 ### Upload a tool that touches customer data
 1. Analyze code → classification: `internal_customer` or `external_customer`
-2. Fill out security_doc
-3. `POST /api/tools/upload` with security_doc
-4. Tell user: "Submitted for review. Track at /profile or /review."
+2. `GET /api/admin/review-stages` — filter to applicable stages for this classification
+3. If no stages apply → upload without stage_responses, auto-approved
+4. If stages apply → fill security_doc + build stage_responses answering each stage's custom_questions from code analysis
+5. `POST /api/tools/upload` with security_doc and stage_responses
+6. Tell user: "Submitted for review. N stage(s): [names]. Track at /profile or /review."
 
 ### Fork with minor cosmetic change
 1. Modify the file (colors, labels, CSS)

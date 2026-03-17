@@ -37,7 +37,8 @@ type Review = {
   security_doc: Record<string, any> | null
   current_stage_id: string | null
   applicable_stages: string[] | null
-  stage_responses: Record<string, string> | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stage_responses: Record<string, any> | null
   tool: Tool | null
   reviewer: { name: string; avatar_url: string | null } | null
   current_stage: StageObject | null
@@ -292,13 +293,27 @@ function ActionPanel({
   reviewId: string
   reviewStatus: string
   currentStage: StageObject | null
-  stageResponses: Record<string, string> | null
+  stageResponses: Record<string, Record<string, string>> | Record<string, string> | null
   userRole: string
   onActionComplete: () => void
 }) {
   const [actionMode, setActionMode] = useState<"approve" | "changes" | "reject" | null>(null)
   const [notes, setNotes]           = useState("")
-  const [answers, setAnswers]       = useState<Record<string, string>>(stageResponses ?? {})
+
+  // stage_responses can be nested {stageId: {questionId: answer}} (new format)
+  // or flat {questionId: answer} (legacy). Normalise to flat for the current stage.
+  const prefilled: Record<string, string> = (() => {
+    if (!stageResponses || !currentStage) return {}
+    const first = Object.values(stageResponses)[0]
+    if (first && typeof first === "object") {
+      // nested format — extract this stage's answers
+      return (stageResponses as Record<string, Record<string, string>>)[currentStage.id] ?? {}
+    }
+    // flat format (legacy)
+    return stageResponses as Record<string, string>
+  })()
+
+  const [answers, setAnswers] = useState<Record<string, string>>(prefilled)
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
