@@ -56,7 +56,7 @@ export default function HomePage() {
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section style={{ maxWidth: 740, margin: "0 auto", padding: "80px 24px 72px", textAlign: "center" }}>
         <p style={{ fontSize: 13, fontWeight: 500, color: "#c2724f", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 20 }}>
-          Built for teams building with AI
+          For teams building with AI
         </p>
         <h1 style={{ fontSize: 44, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.03em", lineHeight: 1.15, margin: "0 0 8px" }}>
           Your employees are building AI tools.
@@ -65,8 +65,8 @@ export default function HomePage() {
           Where do those tools live?
         </h2>
         <p style={{ fontSize: 17, color: "#6b7280", lineHeight: 1.65, maxWidth: 580, margin: "0 auto 36px" }}>
-          ForkHub is the secure, searchable library for your team&apos;s AI-generated tools.
-          Upload, review, discover, and fork — with a full security pipeline built in.
+          ForkHub is a secure, searchable library for tools your team builds.
+          Upload, review, discover, and fork with a full security pipeline.
         </p>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <a
@@ -93,7 +93,7 @@ export default function HomePage() {
               Without ForkHub
             </p>
             <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.02em", textAlign: "center", marginBottom: 40 }}>
-              The problems you already have
+              Sound familiar?
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
               {[
@@ -105,7 +105,7 @@ export default function HomePage() {
                 {
                   icon: "🔓",
                   title: "No Security Review",
-                  desc: "AI tools touch customer data and internal systems with no audit trail and no approval process.",
+                  desc: "Tools touch customer data and internal systems with no audit trail and no approval process.",
                 },
                 {
                   icon: "👻",
@@ -132,17 +132,17 @@ export default function HomePage() {
         <section style={{ padding: "72px 24px" }}>
           <div style={{ maxWidth: 960, margin: "0 auto" }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c2724f", textAlign: "center", marginBottom: 12 }}>
-              Simple by design
+              How it works
             </p>
             <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.02em", textAlign: "center", marginBottom: 48 }}>
-              How it works
+              From upload to your whole team
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 24 }}>
               {[
-                { num: "1", title: "Upload", desc: "Use the API, Claude Code skill, or upload directly. Any file format — HTML, Python, JSON, scripts." },
-                { num: "2", title: "AI Reviews", desc: "Claude analyzes your code and pre-fills the security questionnaire so reviewers have context." },
-                { num: "3", title: "Team Approves", desc: "Your configured review stages route the tool to the right people. Staged approvals, not chaos." },
-                { num: "4", title: "Team Discovers", desc: "Approved tools are searchable and forkable. Your colleagues build on your work, with your credit intact." },
+                { num: "1", title: "Upload", desc: "Use the API, Claude Code, or upload directly. Any file format works — HTML, Python, JSON, scripts." },
+                { num: "2", title: "Review Prep", desc: "Claude reads your code and fills out the security questionnaire so reviewers have real context to work from." },
+                { num: "3", title: "Team Approves", desc: "Your review stages route the tool to the right people in order. Each stage has its own approver." },
+                { num: "4", title: "Team Discovers", desc: "Approved tools are searchable and forkable. Colleagues build on your work with your name attached." },
               ].map((step) => (
                 <div key={step.num} style={{ textAlign: "center" }}>
                   <div style={{
@@ -168,19 +168,19 @@ export default function HomePage() {
         <section style={{ background: "#fff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "72px 24px" }}>
           <div style={{ maxWidth: 1000, margin: "0 auto" }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c2724f", textAlign: "center", marginBottom: 12 }}>
-              Built for your security team
+              For security teams
             </p>
             <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.02em", textAlign: "center", marginBottom: 40 }}>
-              Enterprise-ready from day one
+              Built with your IT team in mind
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
               {[
                 { icon: "🔒", title: "Configurable Review Pipeline", desc: "Define stages, assign roles, set classification filters, and add custom questions per stage." },
-                { icon: "🤖", title: "AI-Filled Security Questionnaire", desc: "Claude analyzes code and pre-fills the security doc. Reviewers see real context, not blank forms." },
-                { icon: "🏷️", title: "Classification Routing", desc: "Internal vs customer-facing tools automatically route to the right review tracks." },
+                { icon: "📋", title: "Security Questionnaire", desc: "Claude reads the code and fills out the security doc before it reaches your team. Reviewers see real context." },
+                { icon: "🏷️", title: "Classification Routing", desc: "Internal and customer-facing tools automatically go to the right review stages." },
                 { icon: "📄", title: "Any File Format", desc: "HTML tools, Python scripts, JSON configs — ForkHub accepts and previews them all." },
-                { icon: "🔑", title: "API-First", desc: "Full REST API for CI/CD integration. Claude Code skill included — agents can upload autonomously." },
-                { icon: "👥", title: "Role-Based Access", desc: "Members, reviewers, and admins with scoped permissions. No over-provisioning." },
+                { icon: "🔑", title: "API-First", desc: "Full REST API for CI/CD integration. A Claude Code skill is included for direct uploads from the terminal." },
+                { icon: "👥", title: "Role-Based Access", desc: "Members, reviewers, and admins each have scoped permissions." },
               ].map((feat) => (
                 <div key={feat.title} style={{
                   display: "flex", gap: 16, padding: "20px 20px",
@@ -203,7 +203,7 @@ export default function HomePage() {
         <section style={{ padding: "80px 24px", textAlign: "center" }}>
           <div style={{ maxWidth: 560, margin: "0 auto" }}>
             <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", letterSpacing: "-0.02em", margin: "0 0 12px" }}>
-              Ready to bring order to your team&apos;s AI tools?
+              Give your team&apos;s tools a home.
             </h3>
             <p style={{ fontSize: 15, color: "#9ca3af", margin: "0 0 32px" }}>Free to start. No credit card.</p>
             <a

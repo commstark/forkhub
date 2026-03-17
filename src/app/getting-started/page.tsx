@@ -15,39 +15,30 @@ export default function GettingStartedPage() {
         <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
           1. How ForkHub Works
         </h2>
-        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 20 }}>
-          ForkHub is your team&apos;s internal marketplace for AI-generated tools. Upload tools, get them
-          reviewed by your security team, and make them discoverable to your whole organization.
-          When someone finds a tool they want to build on, they fork it — preserving the original
-          creator&apos;s credit while extending the work.
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 24 }}>
+          ForkHub is your team&apos;s library for tools built with AI. Upload a tool, get it reviewed by your
+          security team, and make it discoverable across the organization. When someone finds a tool they
+          want to build on, they fork it and the original creator gets credit.
         </p>
 
-        {/* Flow diagram */}
-        <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
+        {/* Flow diagram — grid wraps cleanly on any width */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {[
-            { icon: "📤", name: "Upload Tool", desc: "Submit via API or Claude Code skill" },
-            { icon: "🤖", name: "AI Analysis", desc: "Auto-generates security questionnaire" },
-            { icon: "🔍", name: "Security Review", desc: "Your team reviews & approves" },
-            { icon: "✅", name: "Approved", desc: "Tool is live and searchable" },
-            { icon: "⑂", name: "Discover & Fork", desc: "Teammates find and build on it" },
-          ].map((step, i, arr) => (
-            <div key={step.name} style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-              <div style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border-card)",
-                borderRadius: 8,
-                padding: "14px 16px",
-                textAlign: "center",
-                minWidth: 120,
-                flexShrink: 0,
-              }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>{step.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 3 }}>{step.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{step.desc}</div>
-              </div>
-              {i < arr.length - 1 && (
-                <div style={{ color: "var(--accent)", fontWeight: 700, padding: "0 6px", fontSize: 16, flexShrink: 0 }}>→</div>
-              )}
+            { num: "1", icon: "📤", name: "Upload", desc: "Submit via API or Claude Code" },
+            { num: "2", icon: "📋", name: "Security Review", desc: "Your team reviews and approves" },
+            { num: "3", icon: "✅", name: "Approved", desc: "Tool is live and searchable" },
+            { num: "4", icon: "⑂", name: "Fork and Build", desc: "Teammates find it and build on it" },
+          ].map((step) => (
+            <div key={step.name} style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-card)",
+              borderRadius: 8,
+              padding: "16px 14px",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>Step {step.num}</div>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>{step.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{step.name}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>{step.desc}</div>
             </div>
           ))}
         </div>
@@ -61,7 +52,7 @@ export default function GettingStartedPage() {
         <ol style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.9, paddingLeft: 20, margin: "0 0 16px" }}>
           <li>Go to your <Link href="/profile" style={{ color: "var(--accent)" }}>profile page</Link></li>
           <li>Click <strong style={{ color: "var(--text-primary)" }}>&ldquo;Generate API Key&rdquo;</strong></li>
-          <li>Copy the key — it&apos;s shown only once (starts with <code style={{ fontFamily: "var(--font-mono)", fontSize: 12, background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, border: "1px solid var(--border-default)" }}>sk_fh_...</code>)</li>
+          <li>Copy the key. It&apos;s shown only once (starts with <code style={{ fontFamily: "var(--font-mono)", fontSize: 12, background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, border: "1px solid var(--border-default)" }}>sk_fh_...</code>)</li>
           <li>Use it in all API calls via the <code style={{ fontFamily: "var(--font-mono)", fontSize: 12, background: "var(--bg-secondary)", padding: "1px 5px", borderRadius: 3, border: "1px solid var(--border-default)" }}>Authorization</code> header</li>
         </ol>
         <pre style={{
@@ -86,7 +77,7 @@ export default function GettingStartedPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginBottom: 8 }}>With Claude Code</div>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 10px" }}>
               Load the ForkHub skill in Claude Code, describe your tool, and Claude handles
-              classification, security doc generation, and upload automatically.
+              classification, security doc generation, and upload.
             </p>
             <pre style={{
               background: "var(--bg-secondary)", border: "1px solid var(--border-default)", borderRadius: 6,
@@ -129,7 +120,7 @@ export default function GettingStartedPage() {
               dot: "🟢",
               label: "internal_noncustomer",
               desc: "Internal only, no customer data",
-              detail: "Auto-approved instantly — no review required.",
+              detail: "Auto-approved. No review required.",
             },
             {
               color: "#b8860b",
@@ -147,7 +138,7 @@ export default function GettingStartedPage() {
               dot: "🔴",
               label: "external_customer",
               desc: "Visible to or used by customers",
-              detail: "Full security review pipeline — all stages required.",
+              detail: "Full security review pipeline. All configured stages required.",
             },
           ].map((c) => (
             <div key={c.label} style={{
@@ -169,11 +160,10 @@ export default function GettingStartedPage() {
           5. How the Review Pipeline Works
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 16 }}>
-          Your admin configures an ordered list of review stages. Each stage has a required role
-          (e.g. <em>reviewer</em>, <em>legal</em>), a classification filter, and optional custom
-          questions. When a reviewer approves at one stage, the tool advances to the next. Once the
-          final stage is approved, the tool is live. If no stages apply to your classification, the
-          tool is auto-approved instantly.
+          Your admin configures an ordered list of review stages. Each stage has an assigned role,
+          a classification filter, and optional custom questions. When a reviewer approves at one stage,
+          the tool moves to the next. Once the last stage is cleared, the tool goes live. If no stages
+          apply to your classification, the tool is approved right away.
         </p>
 
         {/* Example timeline */}
@@ -210,8 +200,9 @@ export default function GettingStartedPage() {
         </div>
 
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
-          AI agents (Claude Code) can pre-fill stage question answers at upload time by passing
-          a <code style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3, border: "1px solid var(--border-default)" }}>stage_responses</code> JSON object in the upload request.
+          When uploading through Claude Code, answers to stage questions can be pre-filled via the{" "}
+          <code style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3, border: "1px solid var(--border-default)" }}>stage_responses</code>{" "}
+          field in the upload request. Reviewers see them pre-populated and can edit before deciding.
         </p>
       </section>
 
@@ -221,10 +212,10 @@ export default function GettingStartedPage() {
           6. Forking a Tool
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 16 }}>
-          Find a tool you want to build on and fork it. ForkHub creates a V2 with your changes,
-          with the original creator credited. Minor changes (e.g. small UI tweaks) are auto-approved.
-          Major changes enter the full review pipeline. Your fork always shows a link back to the
-          original tool.
+          Find a tool you want to build on and fork it. ForkHub creates a new version with your changes
+          and keeps the original creator credited. Minor changes like UI tweaks are auto-approved.
+          Anything that touches functionality or data handling goes through the review pipeline.
+          Your fork links back to the original.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {[
@@ -265,7 +256,7 @@ export default function GettingStartedPage() {
               {[
                 {
                   title: "Connect Slack",
-                  desc: "Set SLACK_WEBHOOK_URL in your integrations settings to get real-time notifications on review actions.",
+                  desc: "Add SLACK_WEBHOOK_URL in your integrations settings to receive notifications on review actions.",
                 },
                 {
                   title: "Manage Users",
@@ -273,11 +264,11 @@ export default function GettingStartedPage() {
                 },
                 {
                   title: "Configure Review Pipeline",
-                  desc: "GET/POST /api/admin/review-stages to view and create pipeline stages. Each stage has a role, classification filter, and sort order.",
+                  desc: "GET/POST /api/admin/review-stages to view and create pipeline stages. Each stage has a role, classification filter, and order.",
                 },
                 {
                   title: "Custom Questions Per Stage",
-                  desc: "Add a custom_questions array to any stage. Reviewers answer these during review. AI agents can pre-fill answers at upload time.",
+                  desc: "Add a custom_questions array to any stage. Reviewers answer these when making their decision. Uploaders using Claude Code can pre-fill the answers.",
                 },
               ].map((item) => (
                 <div key={item.title} style={{
