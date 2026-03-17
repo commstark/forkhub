@@ -12,23 +12,52 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (!user.email) return false
 
       const domain = user.email.split("@")[1]
 
-      // Find or create org by email domain
-      let { data: org } = await supabaseServer
-        .from("orgs")
-        .select("id")
-        .eq("domain", domain)
-        .single()
+      // Personal email providers must never share an org — each user gets their own.
+      // Only Google Workspace accounts (hd claim present and not gmail.com) auto-join
+      // an existing org by domain.
+      const PERSONAL_DOMAINS = new Set([
+        "gmail.com", "hotmail.com", "yahoo.com", "outlook.com",
+        "icloud.com", "me.com", "live.com", "aol.com", "protonmail.com",
+      ])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hostedDomain = (profile as any)?.hd as string | undefined
+      const isWorkspace  = !!hostedDomain && hostedDomain !== "gmail.com"
+      const isPersonal   = PERSONAL_DOMAINS.has(domain) || !isWorkspace
 
-      if (!org) {
-        const slug = domain.replace(/\./g, "-")
+      let org: { id: string } | null = null
+
+      if (isWorkspace) {
+        // Google Workspace: find or create a shared org for this domain
+        const { data: existing } = await supabaseServer
+          .from("orgs")
+          .select("id")
+          .eq("domain", domain)
+          .single()
+
+        if (existing) {
+          org = existing
+        } else {
+          const slug = domain.replace(/\./g, "-")
+          const { data: newOrg, error } = await supabaseServer
+            .from("orgs")
+            .insert({ name: domain, slug, domain })
+            .select("id")
+            .single()
+          if (error) return false
+          org = newOrg
+        }
+      } else {
+        // Personal email: always create a fresh personal org so users never share one
+        const baseName  = user.name ?? user.email.split("@")[0]
+        const baseSlug  = `${user.email.split("@")[0]}-${Date.now()}`
         const { data: newOrg, error } = await supabaseServer
           .from("orgs")
-          .insert({ name: domain, slug, domain })
+          .insert({ name: baseName, slug: baseSlug, domain: isPersonal ? null : domain })
           .select("id")
           .single()
         if (error) return false
