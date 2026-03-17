@@ -130,6 +130,7 @@ export async function POST(
         security_doc:      securityDoc,
         applicable_stages: stageIds,
         current_stage_id:  firstStageId,
+        stage_responses:   {},
         created_at:        new Date().toISOString(),
       })
       .select("id")

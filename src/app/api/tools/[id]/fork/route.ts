@@ -233,6 +233,7 @@ export async function POST(
         security_doc:      forkSecurityDoc,
         applicable_stages: stageIds,
         current_stage_id:  firstStageId,
+        stage_responses:   {},
         created_at:        now,
       })
       .select("id")

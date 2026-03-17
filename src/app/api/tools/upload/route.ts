@@ -33,23 +33,64 @@ export async function POST(request: NextRequest) {
   if (!title?.trim() || !description?.trim() || !category?.trim() || !classification || !file) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
+  if (title.trim().length > 200) {
+    return NextResponse.json({ error: "Title must be 200 characters or fewer" }, { status: 400 })
+  }
   if (!VALID_CLASSIFICATIONS.includes(classification)) {
     return NextResponse.json({ error: "Invalid classification" }, { status: 400 })
+  }
+  if (file.size === 0) {
+    return NextResponse.json({ error: "File is empty" }, { status: 400 })
   }
   if (file.size > 50 * 1024 * 1024) {
     return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 })
   }
 
-  // Duplicate title check — reject if another tool in this org already has this exact title
-  const { data: existing } = await supabaseServer
-    .from("tools")
-    .select("id")
-    .eq("org_id", orgId)
-    .ilike("title", title.trim())
-    .limit(1)
-    .single()
-  if (existing) {
-    return NextResponse.json({ error: "A tool with this title already exists in your org" }, { status: 409 })
+  // Disambiguate duplicate titles silently.
+  // If "Title" exists → try "Title — FirstName" → "Title — FirstName 2" etc.
+  // The final resolved title is returned in the response so uploaders know what was saved.
+  let resolvedTitle = title.trim()
+  {
+    const { data: exactMatch } = await supabaseServer
+      .from("tools")
+      .select("id")
+      .eq("org_id", orgId)
+      .ilike("title", resolvedTitle)
+      .limit(1)
+      .single()
+
+    if (exactMatch) {
+      const firstName = (auth.user.name ?? auth.user.email ?? "").split(" ")[0] || "me"
+      const withName = `${resolvedTitle} — ${firstName}`
+
+      const { data: nameMatch } = await supabaseServer
+        .from("tools")
+        .select("id")
+        .eq("org_id", orgId)
+        .ilike("title", withName)
+        .limit(1)
+        .single()
+
+      if (!nameMatch) {
+        resolvedTitle = withName
+      } else {
+        // Find the next available suffix number
+        let n = 2
+        while (true) {
+          const candidate = `${withName} ${n}`
+          const { data: numMatch } = await supabaseServer
+            .from("tools")
+            .select("id")
+            .eq("org_id", orgId)
+            .ilike("title", candidate)
+            .limit(1)
+            .single()
+          if (!numMatch) { resolvedTitle = candidate; break }
+          n++
+          if (n > 99) { resolvedTitle = `${withName} ${Date.now()}`; break } // safety valve
+        }
+      }
+    }
   }
 
   // If updating an approved tool with minor_change, auto-approve without review
@@ -109,7 +150,7 @@ export async function POST(request: NextRequest) {
       id: toolId,
       org_id: orgId,
       creator_id: userId,
-      title,
+      title:          resolvedTitle,
       description,
       category,
       classification,
@@ -133,7 +174,7 @@ export async function POST(request: NextRequest) {
   if (isMinorUpdate) {
     // Minor update to approved tool — auto-approve, no review
     await writeAuditLog({ orgId, userId, action: "tool.minor_update", targetType: "tool", targetId: toolId,
-      metadata: { title, classification, parent_tool_id: parentToolId } })
+      metadata: { title: resolvedTitle, classification, parent_tool_id: parentToolId } })
   } else if (status === "in_review") {
     // Customer-facing new upload or major change — create review
     // Use agent-provided security_doc if supplied, otherwise build empty template
@@ -161,7 +202,7 @@ export async function POST(request: NextRequest) {
         security_doc:      securityDoc,
         applicable_stages: stageIds,
         current_stage_id:  firstStageId,
-        stage_responses:   stageResponses,
+        stage_responses:   stageResponses ?? {},
         created_at:        now,
       })
       .select("id")
@@ -169,10 +210,10 @@ export async function POST(request: NextRequest) {
     if (reviewError) console.error("Failed to create review:", reviewError.message)
 
     await writeAuditLog({ orgId, userId, action: "tool.submitted", targetType: "tool", targetId: toolId,
-      metadata: { title, classification, change_type: changeType } })
+      metadata: { title: resolvedTitle, classification, change_type: changeType } })
 
     notifySlack(orgId, slackMessages.submitted(
-      title, auth.user.name ?? auth.user.email ?? "Unknown", classification, review?.id ?? "", securityDoc
+      resolvedTitle, auth.user.name ?? auth.user.email ?? "Unknown", classification, review?.id ?? "", securityDoc
     ))
 
     // Fire-and-forget email to first-stage reviewers
@@ -194,10 +235,10 @@ export async function POST(request: NextRequest) {
                 if (reviewer.email) {
                   sendEmail(
                     reviewer.email,
-                    `[ForkHub Review] ${title} — ${firstStage.name}`,
+                    `[ForkHub Review] ${resolvedTitle} — ${firstStage.name}`,
                     toolSubmittedEmail({
                       reviewerEmail: reviewer.email,
-                      toolTitle: title,
+                      toolTitle: resolvedTitle,
                       classification,
                       stageName: firstStage.name,
                       reviewUrl,
@@ -218,7 +259,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } else {
     await writeAuditLog({ orgId, userId, action: "tool.created", targetType: "tool", targetId: toolId,
-      metadata: { title, classification, status } })
+      metadata: { title: resolvedTitle, classification, status } })
   }
 
   return NextResponse.json(tool, { status: 201 })
