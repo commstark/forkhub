@@ -25,13 +25,16 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, status, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  if (review.status !== "pending") {
+    return NextResponse.json({ error: "Review is no longer pending" }, { status: 409 })
   }
 
   // Stage role verification: non-admins must match the stage's assigned_role
@@ -68,10 +71,20 @@ export async function POST(
     )
 
     if (nextStageId) {
-      await supabaseServer
+      // Optimistic lock: only advance if stage hasn't changed since we read it.
+      // If two reviewers approve simultaneously, exactly one will match and advance;
+      // the second will get "Review is no longer pending" on re-read or a no-op here.
+      const { data: advanced } = await supabaseServer
         .from("reviews")
         .update({ current_stage_id: nextStageId, reviewer_id: auth.user.id })
         .eq("id", params.id)
+        .eq("current_stage_id", review.current_stage_id as string)
+        .select("id")
+        .single()
+
+      if (!advanced) {
+        return NextResponse.json({ error: "Review was modified concurrently — please reload" }, { status: 409 })
+      }
 
       // Notify Slack that the review has advanced
       notifySlack(auth.user.orgId, {

@@ -26,13 +26,16 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, current_stage_id, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, status, current_stage_id, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  if (review.status !== "pending") {
+    return NextResponse.json({ error: "Review is no longer pending" }, { status: 409 })
   }
 
   // Stage role verification: non-admins must match the stage's assigned_role

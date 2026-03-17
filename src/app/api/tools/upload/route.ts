@@ -29,11 +29,26 @@ export async function POST(request: NextRequest) {
   const securityDocRaw       = formData.get("security_doc") as string | null
   const stageResponsesRaw    = formData.get("stage_responses") as string | null
 
-  if (!title || !description || !category || !classification || !file) {
+  if (!title?.trim() || !description?.trim() || !category?.trim() || !classification || !file) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
   if (!VALID_CLASSIFICATIONS.includes(classification)) {
     return NextResponse.json({ error: "Invalid classification" }, { status: 400 })
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 })
+  }
+
+  // Duplicate title check — reject if another tool in this org already has this exact title
+  const { data: existing } = await supabaseServer
+    .from("tools")
+    .select("id")
+    .eq("org_id", orgId)
+    .ilike("title", title.trim())
+    .limit(1)
+    .single()
+  if (existing) {
+    return NextResponse.json({ error: "A tool with this title already exists in your org" }, { status: 409 })
   }
 
   // If updating an approved tool with minor_change, auto-approve without review

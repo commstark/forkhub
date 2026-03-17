@@ -113,6 +113,9 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
+      // If the DB lookup failed at sign-in, token.userId will be missing.
+      // Return an empty session rather than a partial one with undefined fields.
+      if (!token.userId || !token.orgId) return session
       if (session.user) {
         session.user.id = token.userId as string
         session.user.orgId = token.orgId as string
