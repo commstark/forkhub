@@ -277,6 +277,27 @@ export default function BrowsePage() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
+  // Fetch facets once from the full unfiltered list so filter dropdowns always
+  // show every available option regardless of which other filters are active.
+  useEffect(() => {
+    fetch("/api/tools")
+      .then((r) => r.json())
+      .then((data) => {
+        const all: Tool[] = Array.isArray(data) ? data : []
+        setCategories(Array.from(new Set(all.map((t) => t.category).filter(Boolean))))
+        setFileTypes(Array.from(new Set(all.map((t) => t.file_type).filter(Boolean))))
+        const catCounts = new Map<string, number>()
+        const ftCounts  = new Map<string, number>()
+        for (const t of all) {
+          if (t.category)  catCounts.set(t.category,  (catCounts.get(t.category)  ?? 0) + 1)
+          if (t.file_type) ftCounts.set(t.file_type,  (ftCounts.get(t.file_type)  ?? 0) + 1)
+        }
+        setCategoryCounts(catCounts)
+        setFileTypeCounts(ftCounts)
+      })
+      .catch(() => {/* facets are best-effort */})
+  }, [])
+
   useEffect(() => {
     const params = new URLSearchParams()
     if (filters.q)              params.set("q", filters.q)
@@ -293,19 +314,6 @@ export default function BrowsePage() {
       .then((data) => {
         const list: Tool[] = Array.isArray(data) ? data : []
         setTools(list)
-        if (!filters.category) {
-          const cats = Array.from(new Set(list.map((t) => t.category).filter(Boolean)))
-          setCategories(cats)
-          const counts = new Map<string, number>()
-          for (const t of list) if (t.category) counts.set(t.category, (counts.get(t.category) ?? 0) + 1)
-          setCategoryCounts(counts)
-        }
-        if (!filters.file_type) {
-          setFileTypes(Array.from(new Set(list.map((t) => t.file_type).filter(Boolean))))
-          const counts = new Map<string, number>()
-          for (const t of list) if (t.file_type) counts.set(t.file_type, (counts.get(t.file_type) ?? 0) + 1)
-          setFileTypeCounts(counts)
-        }
         if (!Array.isArray(data)) setError("Failed to load tools")
         setLoading(false)
       })
