@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -93,6 +93,452 @@ function IntegrationBlock({ title, children, onSave, onTest, saving, testing, te
         )}
       </div>
     </div>
+  )
+}
+
+// ─── Review Pipeline ──────────────────────────────────────────────────────────
+
+type CustomQuestion = { id: string; question: string; required: boolean }
+
+type ReviewStage = {
+  id: string
+  name: string
+  stage_order: number
+  assigned_role: string
+  applies_to_classifications: string[]
+  custom_questions: CustomQuestion[]
+  notify_email: boolean
+  notify_slack: boolean
+}
+
+const ALL_CLASSIFICATIONS = [
+  { value: "internal_noncustomer", label: "Internal (no customer data)" },
+  { value: "internal_customer",    label: "Internal (customer data)" },
+  { value: "external_customer",    label: "External (customer-facing)" },
+]
+
+function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{
+        display: "flex", alignItems: "center", gap: 6, background: "none", border: "none",
+        cursor: "pointer", padding: "2px 0", fontSize: 13, color: "var(--text-2)",
+      }}
+    >
+      <span style={{
+        width: 32, height: 18, borderRadius: 9, background: on ? "var(--success, #22c55e)" : "#d1d5db",
+        position: "relative", flexShrink: 0, transition: "background 0.15s",
+      }}>
+        <span style={{
+          position: "absolute", top: 2, left: on ? 14 : 2, width: 14, height: 14,
+          borderRadius: "50%", background: "#fff", transition: "left 0.15s",
+        }} />
+      </span>
+      {label}
+    </button>
+  )
+}
+
+function PipelinePreview({ stages }: { stages: ReviewStage[] }) {
+  const ordered = [...stages].sort((a, b) => a.stage_order - b.stage_order)
+
+  function stagesFor(classification: string) {
+    return ordered.filter((s) =>
+      s.applies_to_classifications.length === 0 ||
+      s.applies_to_classifications.includes(classification)
+    )
+  }
+
+  const rows: { label: string; value: string; classification: string }[] = [
+    { classification: "internal_noncustomer", label: "internal_noncustomer", value: "" },
+    { classification: "internal_customer",    label: "internal_customer",    value: "" },
+    { classification: "external_customer",    label: "external_customer",    value: "" },
+  ]
+
+  return (
+    <div style={{ marginTop: 20, padding: "14px 16px", background: "#fafaf9", border: "1px solid #e8e3dc", borderRadius: 8 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-3)", marginBottom: 10 }}>
+        Pipeline preview
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map(({ classification, label }) => {
+          const applicable = stagesFor(classification)
+          return (
+            <div key={classification} style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap", rowGap: 2 }}>
+              <code style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-2)", flexShrink: 0, marginRight: 8 }}>
+                {label}
+              </code>
+              <span style={{ fontSize: 12, color: "var(--text-3)", marginRight: 6 }}>→</span>
+              {applicable.length === 0 ? (
+                <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>Auto-approved</span>
+              ) : (
+                <>
+                  {applicable.map((s, i) => (
+                    <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-1)", fontWeight: 500 }}>{s.name}</span>
+                      <span style={{ fontSize: 12, color: "var(--text-3)", margin: "0 6px" }}>→</span>
+                      {i === applicable.length - 1 && (
+                        <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>Approved</span>
+                      )}
+                    </span>
+                  ))}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function StageCard({
+  stage, index, total,
+  onMoveUp, onMoveDown, onDelete, onSave,
+}: {
+  stage: ReviewStage; index: number; total: number
+  onMoveUp: () => void; onMoveDown: () => void
+  onDelete: () => void; onSave: (updated: ReviewStage) => Promise<void>
+}) {
+  const [edit, setEdit]                   = useState<ReviewStage>(stage)
+  const [questionsOpen, setQuestionsOpen] = useState(false)
+  const [saving, setSaving]               = useState(false)
+  const [dirty, setDirty]                 = useState(false)
+
+  function update(patch: Partial<ReviewStage>) {
+    setEdit((e) => ({ ...e, ...patch }))
+    setDirty(true)
+  }
+
+  function toggleClassification(val: string) {
+    const current = edit.applies_to_classifications
+    const next = current.includes(val) ? current.filter((c) => c !== val) : [...current, val]
+    update({ applies_to_classifications: next })
+  }
+
+  function addQuestion() {
+    const q: CustomQuestion = { id: `q${Date.now()}`, question: "", required: false }
+    update({ custom_questions: [...edit.custom_questions, q] })
+    setQuestionsOpen(true)
+  }
+
+  function updateQuestion(id: string, patch: Partial<CustomQuestion>) {
+    update({ custom_questions: edit.custom_questions.map((q) => q.id === id ? { ...q, ...patch } : q) })
+  }
+
+  function removeQuestion(id: string) {
+    update({ custom_questions: edit.custom_questions.filter((q) => q.id !== id) })
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(edit)
+    setSaving(false)
+    setDirty(false)
+  }
+
+  return (
+    <div className="integ-block" style={{ position: "relative" }}>
+      {/* Stage number + reorder */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            width: 22, height: 22, borderRadius: "50%", background: "var(--copper, #b45309)",
+            color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {index + 1}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-3)" }}>
+            Stage {index + 1}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            onClick={onMoveUp} disabled={index === 0}
+            className="btn btn-ghost btn-sm" style={{ padding: "2px 8px", opacity: index === 0 ? 0.3 : 1 }}
+            title="Move up"
+          >↑</button>
+          <button
+            onClick={onMoveDown} disabled={index === total - 1}
+            className="btn btn-ghost btn-sm" style={{ padding: "2px 8px", opacity: index === total - 1 ? 0.3 : 1 }}
+            title="Move down"
+          >↓</button>
+          <button
+            onClick={onDelete} disabled={total === 1}
+            className="btn-danger-ghost"
+            style={{ fontSize: 12, opacity: total === 1 ? 0.3 : 1 }}
+            title={total === 1 ? "Cannot delete the only stage" : "Delete stage"}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {/* Name */}
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label className="field-label">Stage Name</label>
+        <input
+          value={edit.name}
+          onChange={(e) => update({ name: e.target.value })}
+          className="input"
+          placeholder="e.g. Security Review"
+        />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        {/* Assigned role */}
+        <div className="field">
+          <label className="field-label">Assigned role</label>
+          <select
+            value={edit.assigned_role}
+            onChange={(e) => update({ assigned_role: e.target.value })}
+            className="input"
+            style={{ cursor: "pointer" }}
+          >
+            <option value="reviewer">reviewer</option>
+            <option value="admin">admin</option>
+            <option value="member">member</option>
+          </select>
+        </div>
+
+        {/* Notifications */}
+        <div className="field">
+          <label className="field-label">Notifications</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 2 }}>
+            <Toggle on={edit.notify_slack} onToggle={() => update({ notify_slack: !edit.notify_slack })} label="Slack" />
+            <Toggle on={edit.notify_email} onToggle={() => update({ notify_email: !edit.notify_email })} label="Email assignees" />
+          </div>
+        </div>
+      </div>
+
+      {/* Applies to classifications */}
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label className="field-label">Applies to classifications</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 2 }}>
+          {ALL_CLASSIFICATIONS.map(({ value, label }) => (
+            <label key={value} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={edit.applies_to_classifications.includes(value)}
+                onChange={() => toggleClassification(value)}
+              />
+              <span style={{ color: "var(--text-2)" }}>{label}</span>
+            </label>
+          ))}
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-3)", marginTop: 5 }}>
+          Leave all unchecked to apply this stage to every classification.
+        </p>
+      </div>
+
+      {/* Custom questions */}
+      <div style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          onClick={() => setQuestionsOpen((v) => !v)}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}
+        >
+          <span style={{ fontSize: 10 }}>{questionsOpen ? "▼" : "▶"}</span>
+          Custom Questions
+          {edit.custom_questions.length > 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-3)" }}>({edit.custom_questions.length})</span>
+          )}
+        </button>
+        {questionsOpen && (
+          <div style={{ marginTop: 10, paddingLeft: 14, borderLeft: "2px solid #e8e3dc" }}>
+            <p style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>
+              These questions will be pre-filled by the AI agent during upload. Reviewers verify and complete the answers.
+            </p>
+            {edit.custom_questions.length === 0 && (
+              <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 10 }}>No questions yet.</p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+              {edit.custom_questions.map((q) => (
+                <div key={q.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <input
+                    value={q.question}
+                    onChange={(e) => updateQuestion(q.id, { question: e.target.value })}
+                    className="input"
+                    placeholder="Question text…"
+                    style={{ flex: 1 }}
+                  />
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-2)", flexShrink: 0, paddingTop: 8, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={q.required}
+                      onChange={(e) => updateQuestion(q.id, { required: e.target.checked })}
+                    />
+                    Required
+                  </label>
+                  <button
+                    onClick={() => removeQuestion(q.id)}
+                    className="btn-danger-ghost"
+                    style={{ fontSize: 12, flexShrink: 0, paddingTop: 6 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addQuestion} className="btn btn-ghost btn-sm">+ Add Question</button>
+          </div>
+        )}
+      </div>
+
+      {/* Save */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={handleSave}
+          disabled={saving || !dirty}
+          className="btn btn-primary btn-sm"
+          style={{ opacity: !dirty ? 0.5 : 1 }}
+        >
+          {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ReviewPipelineSection() {
+  const [stages, setStages]     = useState<ReviewStage[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [adding, setAdding]     = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+
+  const loadStages = useCallback(async () => {
+    const res  = await fetch("/api/admin/review-stages")
+    const data = await res.json()
+    if (Array.isArray(data)) setStages(data)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadStages() }, [loadStages])
+
+  async function handleSave(updated: ReviewStage) {
+    await fetch(`/api/admin/review-stages/${updated.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name:                      updated.name,
+        assigned_role:             updated.assigned_role,
+        applies_to_classifications: updated.applies_to_classifications,
+        custom_questions:          updated.custom_questions,
+        notify_email:              updated.notify_email,
+        notify_slack:              updated.notify_slack,
+      }),
+    })
+    await loadStages()
+  }
+
+  async function handleMove(index: number, direction: "up" | "down") {
+    const sorted = [...stages].sort((a, b) => a.stage_order - b.stage_order)
+    const swapIdx = direction === "up" ? index - 1 : index + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+
+    const reordered = sorted.map((s, i) => ({ ...s }))
+    const tmp = reordered[index].stage_order
+    reordered[index].stage_order = reordered[swapIdx].stage_order
+    reordered[swapIdx].stage_order = tmp
+
+    // Optimistic update
+    setStages(reordered.sort((a, b) => a.stage_order - b.stage_order))
+
+    await fetch("/api/admin/review-stages/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reordered.map((s) => ({ id: s.id, stage_order: s.stage_order }))),
+    })
+    await loadStages()
+  }
+
+  async function handleDelete(id: string) {
+    setDeleteConfirm(null)
+    await fetch(`/api/admin/review-stages/${id}`, { method: "DELETE" })
+    await loadStages()
+  }
+
+  async function handleAdd() {
+    setAdding(true)
+    await fetch("/api/admin/review-stages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "New Review Stage" }),
+    })
+    await loadStages()
+    setAdding(false)
+  }
+
+  const sorted = [...stages].sort((a, b) => a.stage_order - b.stage_order)
+
+  return (
+    <section className="page-section">
+      <h2 className="section-heading">Review Pipeline</h2>
+      <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20 }}>
+        Configure the stages each tool submission passes through before approval. Stages run in order.
+        Approving a stage advances to the next — the tool is only marked approved after the final stage clears.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: "var(--text-3)" }}>Loading…</p>
+      ) : (
+        <>
+          {/* Stage cards */}
+          <div className="stack" style={{ gap: 12 }}>
+            {sorted.map((stage, i) => (
+              <StageCard
+                key={stage.id}
+                stage={stage}
+                index={i}
+                total={sorted.length}
+                onMoveUp={() => handleMove(i, "up")}
+                onMoveDown={() => handleMove(i, "down")}
+                onDelete={() => setDeleteConfirm(stage.id)}
+                onSave={handleSave}
+              />
+            ))}
+          </div>
+
+          {/* Add Stage */}
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={handleAdd}
+              disabled={adding}
+              className="btn btn-secondary btn-sm"
+            >
+              {adding ? "Adding…" : "+ Add Stage"}
+            </button>
+          </div>
+
+          {/* Pipeline preview */}
+          <PipelinePreview stages={sorted} />
+        </>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+        }}>
+          <div className="card card-pad" style={{ maxWidth: 400, width: "90%" }}>
+            <p style={{ fontWeight: 600, marginBottom: 8 }}>Delete this stage?</p>
+            <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20 }}>
+              This removes the stage from the pipeline. Remaining stages will be renumbered.
+              Active reviews at this stage will lose their stage assignment.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setDeleteConfirm(null)} className="btn btn-ghost btn-sm">Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} className="btn btn-sm" style={{ background: "var(--danger, #dc2626)", color: "#fff" }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -366,6 +812,9 @@ export default function AdminPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Review Pipeline ── */}
+      <ReviewPipelineSection />
 
       {/* ── Org Info ── */}
       <section className="page-section">

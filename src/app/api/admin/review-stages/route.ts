@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
   const { name, stage_order, assigned_role, applies_to_classifications, custom_questions, notify_email, notify_slack } = body
 
   if (!name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 })
-  if (typeof stage_order !== "number") return NextResponse.json({ error: "stage_order (number) is required" }, { status: 400 })
   if (assigned_role && !VALID_ROLES.includes(assigned_role)) {
     return NextResponse.json({ error: `assigned_role must be one of: ${VALID_ROLES.join(", ")}` }, { status: 400 })
   }
@@ -40,12 +39,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Auto-assign next stage_order if not provided
+  let resolvedOrder = stage_order
+  if (resolvedOrder === undefined || resolvedOrder === null) {
+    const { data: existing } = await supabaseServer
+      .from("review_stages")
+      .select("stage_order")
+      .eq("org_id", auth.user.orgId)
+      .order("stage_order", { ascending: false })
+      .limit(1)
+    resolvedOrder = ((existing?.[0]?.stage_order) ?? 0) + 1
+  }
+
   const { data, error } = await supabaseServer
     .from("review_stages")
     .insert({
       org_id:                    auth.user.orgId,
       name:                      name.trim(),
-      stage_order,
+      stage_order:               resolvedOrder,
       assigned_role:             assigned_role ?? "reviewer",
       applies_to_classifications: applies_to_classifications ?? [],
       custom_questions:          custom_questions ?? [],

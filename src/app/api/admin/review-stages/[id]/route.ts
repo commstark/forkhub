@@ -6,6 +6,11 @@ import { supabaseServer } from "@/lib/supabase-server"
 const VALID_ROLES = ["reviewer", "admin"]
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
 
+export async function PUT(
+  request: NextRequest,
+  ctx: { params: { id: string } }
+) { return PATCH(request, ctx) }
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -82,12 +87,37 @@ export async function DELETE(
 
   if (!stage) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
+  const { data: deleted } = await supabaseServer
+    .from("review_stages")
+    .select("stage_order")
+    .eq("id", params.id)
+    .single()
+
   const { error } = await supabaseServer
     .from("review_stages")
     .delete()
     .eq("id", params.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Close the gap: re-number remaining stages sequentially
+  if (deleted) {
+    const { data: remaining } = await supabaseServer
+      .from("review_stages")
+      .select("id, stage_order")
+      .eq("org_id", auth.user.orgId)
+      .order("stage_order", { ascending: true })
+
+    if (remaining && remaining.length > 0) {
+      // Temp-offset to avoid UNIQUE conflicts during renumbering
+      for (const s of remaining) {
+        await supabaseServer.from("review_stages").update({ stage_order: s.stage_order + 100000 }).eq("id", s.id)
+      }
+      for (let i = 0; i < remaining.length; i++) {
+        await supabaseServer.from("review_stages").update({ stage_order: i + 1 }).eq("id", remaining[i].id)
+      }
+    }
+  }
 
   return NextResponse.json({ success: true })
 }
