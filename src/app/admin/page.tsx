@@ -438,7 +438,7 @@ function ReviewPipelineSection() {
     const swapIdx = direction === "up" ? index - 1 : index + 1
     if (swapIdx < 0 || swapIdx >= sorted.length) return
 
-    const reordered = sorted.map((s, i) => ({ ...s }))
+    const reordered = sorted.map((s) => ({ ...s }))
     const tmp = reordered[index].stage_order
     reordered[index].stage_order = reordered[swapIdx].stage_order
     reordered[swapIdx].stage_order = tmp
