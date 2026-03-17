@@ -85,8 +85,15 @@ export default function ReviewQueuePage() {
         <div className="loading-state tab-content" key={activeTab + "-loading"}>Loading…</div>
       ) : reviews.length === 0 ? (
         <div className="empty-state tab-content" key={activeTab + "-empty"}>
-          <p className="empty-state-title">No reviews found</p>
-          <p className="empty-state-desc">Nothing in this queue right now</p>
+          <p className="empty-state-title">No pending reviews</p>
+          <p className="empty-state-desc">
+            {activeTab === "pending" ? "All caught up!" : "Nothing in this queue right now"}
+          </p>
+          {activeTab === "pending" && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+              <a href="/getting-started" style={{ color: "var(--accent)" }}>Learn how the review pipeline works →</a>
+            </p>
+          )}
         </div>
       ) : (
         <div className="table-wrap table-scroll tab-content" key={activeTab}>

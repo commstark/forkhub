@@ -15,6 +15,6 @@ export const config = {
      *
      * Excludes: /login, /api/*, /_next/*, /favicon.ico
      */
-    "/((?!login|api|live|_next/static|_next/image|favicon.ico).*)",
+    "/((?!$|login|api|live|getting-started|_next/static|_next/image|favicon.ico).*)",
   ],
 }

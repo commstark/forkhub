@@ -8,6 +8,7 @@ import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
 import { computeApplicableStages } from "@/lib/review-pipeline"
+import { sendEmail, toolSubmittedEmail } from "@/lib/email"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
 
@@ -157,6 +158,42 @@ export async function POST(request: NextRequest) {
     notifySlack(orgId, slackMessages.submitted(
       title, auth.user.name ?? auth.user.email ?? "Unknown", classification, review?.id ?? "", securityDoc
     ))
+
+    // Fire-and-forget email to first-stage reviewers
+    if (firstStageId) {
+      const reviewId = review?.id ?? ""
+      ;(async () => {
+        try {
+          const stages = await computeApplicableStages(orgId, classification)
+          const firstStage = stages[0]
+          if (firstStage?.notify_email !== false && firstStage?.assigned_role) {
+            const { data: reviewers } = await supabaseServer
+              .from("users")
+              .select("email")
+              .eq("org_id", orgId)
+              .eq("role", firstStage.assigned_role)
+            if (reviewers) {
+              const reviewUrl = `${process.env.NEXTAUTH_URL ?? ""}/review/${reviewId}`
+              for (const reviewer of reviewers) {
+                if (reviewer.email) {
+                  sendEmail(
+                    reviewer.email,
+                    `[ForkHub Review] ${title} — ${firstStage.name}`,
+                    toolSubmittedEmail({
+                      reviewerEmail: reviewer.email,
+                      toolTitle: title,
+                      classification,
+                      stageName: firstStage.name,
+                      reviewUrl,
+                    })
+                  )
+                }
+              }
+            }
+          }
+        } catch { /* email errors must not block the response */ }
+      })()
+    }
 
     return NextResponse.json({
       ...tool,

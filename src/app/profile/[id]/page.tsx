@@ -327,7 +327,16 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
         onToggle={() => toggleSection("originals")}
       >
         {originals.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-3)" }}>No tools contributed yet.</p>
+          <div style={{ padding: "20px 0" }}>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 6px" }}>
+              {isOwn ? "You haven't uploaded any tools yet." : "No tools contributed yet."}
+            </p>
+            {isOwn && (
+              <a href="/getting-started" style={{ fontSize: 13, color: "var(--accent)" }}>
+                Read the Getting Started guide →
+              </a>
+            )}
+          </div>
         ) : (
           <div className="grid-2">
             {originals.map((tool) => <ToolCard key={tool.id} tool={tool} />)}

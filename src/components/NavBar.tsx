@@ -23,7 +23,8 @@ export default function NavBar() {
           <span className="nav-brand-tagline">— the github for humans</span>
         </Link>
         <div className="nav-links">
-          <Link href="/" className={linkClass("/")}>Browse</Link>
+          <Link href="/browse" className={linkClass("/browse")}>Browse</Link>
+          <Link href="/getting-started" className={linkClass("/getting-started")}>Getting Started</Link>
           <Link href="/review" className={linkClass("/review")}>Review Queue</Link>
           {session.user.role === "admin" && (
             <Link href="/admin" className={linkClass("/admin")}>Admin</Link>

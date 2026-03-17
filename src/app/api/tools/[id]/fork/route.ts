@@ -8,6 +8,7 @@ import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
 import { computeApplicableStages } from "@/lib/review-pipeline"
+import { sendEmail, toolForkedEmail } from "@/lib/email"
 
 // SKILL.md note (do not build yet):
 // The AI agent is the gatekeeper for change_type.
@@ -147,6 +148,37 @@ export async function POST(
     .from("tools")
     .update({ fork_count: (original.fork_count ?? 0) + 1 })
     .eq("id", original.id)
+
+  // Fire-and-forget email to original creator
+  ;(async () => {
+    try {
+      const { data: originalCreator } = await supabaseServer
+        .from("tools")
+        .select("creator_id")
+        .eq("id", original.id)
+        .single()
+      if (originalCreator?.creator_id) {
+        const { data: creatorUser } = await supabaseServer
+          .from("users")
+          .select("email")
+          .eq("id", originalCreator.creator_id)
+          .single()
+        if (creatorUser?.email) {
+          sendEmail(
+            creatorUser.email,
+            `[ForkHub] ${auth.user.name ?? "Someone"} forked your tool`,
+            toolForkedEmail({
+              originalCreatorEmail: creatorUser.email,
+              toolTitle: original.title,
+              forkerName: auth.user.name ?? auth.user.email ?? "Someone",
+              forkTitle: title,
+              forkUrl: `${process.env.NEXTAUTH_URL ?? ""}/tool/${newToolId}`,
+            })
+          )
+        }
+      }
+    } catch { /* email errors must not block the response */ }
+  })()
 
   // Handle review creation for major changes needing review
   let reviewId: string | null = null

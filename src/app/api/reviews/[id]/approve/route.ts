@@ -5,6 +5,7 @@ import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 import { notifySlack, slackMessages } from "@/lib/slack"
 import { getNextStageId } from "@/lib/review-pipeline"
+import { sendEmail, stageAdvancedEmail, toolApprovedEmail } from "@/lib/email"
 
 export async function POST(
   request: NextRequest,
@@ -83,6 +84,40 @@ export async function POST(
         review_url:     `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`,
       })
 
+      // Fire-and-forget email to next-stage reviewers (respects notify_email)
+      try {
+        const { data: nextStage } = await supabaseServer
+          .from("review_stages")
+          .select("name, assigned_role, notify_email")
+          .eq("id", nextStageId)
+          .single()
+        if (nextStage?.notify_email !== false && nextStage?.assigned_role) {
+          const { data: reviewers } = await supabaseServer
+            .from("users")
+            .select("email")
+            .eq("org_id", auth.user.orgId)
+            .eq("role", nextStage.assigned_role)
+          if (reviewers) {
+            const reviewUrl = `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`
+            for (const reviewer of reviewers) {
+              if (reviewer.email) {
+                sendEmail(
+                  reviewer.email,
+                  `[ForkHub] ${t?.title ?? "Tool"} advanced to ${nextStage.name}`,
+                  stageAdvancedEmail({
+                    reviewerEmail: reviewer.email,
+                    toolTitle: t?.title ?? "Unknown",
+                    stageName: nextStage.name,
+                    approvedByName: auth.user.name ?? auth.user.email ?? "Unknown",
+                    reviewUrl,
+                  })
+                )
+              }
+            }
+          }
+        }
+      } catch { /* email errors must not block the response */ }
+
       return NextResponse.json({ success: true, advanced: true, next_stage_id: nextStageId })
     }
   }
@@ -105,6 +140,39 @@ export async function POST(
     t?.title ?? "Unknown", auth.user.name ?? auth.user.email ?? "Unknown",
     t?.classification ?? "", notes, review.tool_id
   ))
+
+  // Fire-and-forget email to tool creator
+  ;(async () => {
+    try {
+      const { data: toolRecord } = await supabaseServer
+        .from("tools")
+        .select("creator_id, sharing")
+        .eq("id", review.tool_id)
+        .single()
+      if (toolRecord?.creator_id) {
+        const { data: creatorUser } = await supabaseServer
+          .from("users")
+          .select("email")
+          .eq("id", toolRecord.creator_id)
+          .single()
+        if (creatorUser?.email) {
+          const base = process.env.NEXTAUTH_URL ?? ""
+          const toolUrl = `${base}/tool/${review.tool_id}`
+          const liveUrl = toolRecord.sharing === "link" ? `${base}/live/${review.tool_id}` : null
+          sendEmail(
+            creatorUser.email,
+            `[ForkHub] ✓ ${t?.title ?? "Your tool"} is approved`,
+            toolApprovedEmail({
+              creatorEmail: creatorUser.email,
+              toolTitle: t?.title ?? "Your tool",
+              toolUrl,
+              liveUrl,
+            })
+          )
+        }
+      }
+    } catch { /* email errors must not block the response */ }
+  })()
 
   return NextResponse.json({ success: true, advanced: false })
 }

@@ -4,6 +4,7 @@ import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 import { notifySlack, slackMessages } from "@/lib/slack"
+import { sendEmail, changesRequestedEmail } from "@/lib/email"
 
 export async function POST(
   request: NextRequest,
@@ -78,6 +79,47 @@ export async function POST(
     t?.title ?? "Unknown", auth.user.name ?? auth.user.email ?? "Unknown",
     t?.classification ?? "", notes
   ))
+
+  // Fire-and-forget email to tool creator
+  ;(async () => {
+    try {
+      const { data: toolRecord } = await supabaseServer
+        .from("tools")
+        .select("creator_id")
+        .eq("id", review.tool_id)
+        .single()
+      if (toolRecord?.creator_id) {
+        const { data: creatorUser } = await supabaseServer
+          .from("users")
+          .select("email")
+          .eq("id", toolRecord.creator_id)
+          .single()
+        if (creatorUser?.email) {
+          let stageName = "Review"
+          if (review.current_stage_id) {
+            const { data: stageData } = await supabaseServer
+              .from("review_stages")
+              .select("name")
+              .eq("id", review.current_stage_id)
+              .single()
+            if (stageData?.name) stageName = stageData.name
+          }
+          sendEmail(
+            creatorUser.email,
+            `[ForkHub] Changes requested on ${t?.title ?? "your tool"}`,
+            changesRequestedEmail({
+              creatorEmail: creatorUser.email,
+              toolTitle: t?.title ?? "Your tool",
+              stageName,
+              reviewerName: auth.user.name ?? auth.user.email ?? "A reviewer",
+              notes,
+              reviewUrl: `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`,
+            })
+          )
+        }
+      }
+    } catch { /* email errors must not block the response */ }
+  })()
 
   return NextResponse.json({ success: true })
 }

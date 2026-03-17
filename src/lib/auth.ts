@@ -2,6 +2,7 @@ import "server-only"
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { supabaseServer } from "@/lib/supabase-server"
+import { sendEmail, welcomeEmail } from "@/lib/email"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -53,6 +54,11 @@ export const authOptions: NextAuthOptions = {
           role: "member",
         })
         if (error) return false
+
+        // Fire-and-forget welcome email
+        if (user.email) {
+          sendEmail(user.email, "Welcome to The ForkHub", welcomeEmail(user.name ?? user.email))
+        }
       }
 
       return true
