@@ -53,7 +53,8 @@ export async function GET(
     id:         user.id,
     name:       user.name,
     email:      user.email,
-    avatar_url: user.avatar_url,
+    // Return the proxy URL so the browser never hits raw Supabase storage directly.
+    avatar_url: user.avatar_url ? `/api/users/${user.id}/avatar` : null,
     role:       user.role,
     department: (user as { department?: string | null }).department ?? null,
     created_at: user.created_at,

@@ -10,6 +10,62 @@ export default function GettingStartedPage() {
         Everything you need to upload, review, and discover AI tools with your team.
       </p>
 
+      {/* ── Section 0: Set Up Your Environment ────────────────────────── */}
+      <section className="page-section">
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+          0. Set Up Your Environment
+        </h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 20 }}>
+          The fastest way to use ForkHub is with Claude Code. Download the ForkHub skill file and
+          add it to Claude Code so you can upload and manage tools directly from your terminal.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 20 }}>
+          {[
+            {
+              num: "1",
+              title: "Download the skill",
+              desc: "Click the button below to download SKILL.md, pre-configured with this deployment's URL.",
+            },
+            {
+              num: "2",
+              title: "Add to Claude Code",
+              desc: 'Place SKILL.md in your ~/.claude/skills/ folder. Claude Code picks it up automatically.',
+            },
+            {
+              num: "3",
+              title: "Generate an API key",
+              desc: "Go to your profile, generate an API key, and set FORKHUB_API_KEY in your environment.",
+            },
+          ].map((step) => (
+            <div key={step.num} style={{
+              background: "var(--bg-card)", border: "1px solid var(--border-card)", borderRadius: 8, padding: "16px 14px",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>Step {step.num}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{step.title}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>{step.desc}</div>
+            </div>
+          ))}
+        </div>
+        <a
+          href="/api/skill"
+          download="SKILL.md"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "var(--accent)", color: "#fff",
+            padding: "9px 18px", borderRadius: 6, textDecoration: "none",
+            fontWeight: 600, fontSize: 13,
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Download SKILL.md
+        </a>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10 }}>
+          Note: Your admin can pre-configure and distribute this file to the team from the Admin panel.
+        </p>
+      </section>
+
       {/* ── Section 1: How ForkHub Works ───────────────────────────────── */}
       <section className="page-section">
         <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>

@@ -201,8 +201,8 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
     fd.append("file", file)
     const res = await fetch(`/api/users/${params.id}/avatar`, { method: "POST", body: fd })
     if (res.ok) {
-      const { avatar_url } = await res.json()
-      setAvatarUrl(avatar_url)
+      // Use proxy URL with cache-bust so the new image loads immediately
+      setAvatarUrl(`/api/users/${params.id}/avatar?t=${Date.now()}`)
     }
   }
 
@@ -248,7 +248,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       if (!profileRes.ok) { setNotFound(true); setLoading(false); return }
       const profileData: UserProfile = await profileRes.json()
       setProfile(profileData)
-      setAvatarUrl(profileData.avatar_url)
+      setAvatarUrl(profileData.avatar_url ?? null)
 
       const uploadsData = await fetch(`/api/users/${params.id}/tools`).then((r) => r.json())
       const tools: Tool[] = Array.isArray(uploadsData) ? uploadsData : []

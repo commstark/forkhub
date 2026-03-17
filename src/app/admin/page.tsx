@@ -816,6 +816,33 @@ export default function AdminPage() {
       {/* ── Review Pipeline ── */}
       <ReviewPipelineSection />
 
+      {/* ── Distribute to Your Team ── */}
+      <section className="page-section">
+        <h2 className="section-heading">Distribute to Your Team</h2>
+        <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 16 }}>
+          Share the ForkHub skill with your team so they can upload tools directly from Claude Code.
+          The download is pre-configured with this deployment&apos;s URL.
+        </p>
+        <a
+          href="/api/skill"
+          download="SKILL.md"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "var(--accent)", color: "#fff",
+            padding: "8px 16px", borderRadius: 6, textDecoration: "none",
+            fontWeight: 600, fontSize: 13,
+          }}
+        >
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Download SKILL.md
+        </a>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10 }}>
+          Tell your team: place SKILL.md in <code style={{ fontFamily: "var(--font-mono)", fontSize: 11, background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3 }}>~/.claude/skills/</code> and generate an API key from their profile.
+        </p>
+      </section>
+
       {/* ── Org Info ── */}
       <section className="page-section">
         <h2 className="section-heading">Org Info</h2>

@@ -3,6 +3,56 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  // No auth check — this is a public image endpoint.
+  // The service role key is used server-side to access storage.
+  const { data: user } = await supabaseServer
+    .from("users")
+    .select("avatar_url")
+    .eq("id", params.id)
+    .single()
+
+  if (!user?.avatar_url) return new NextResponse(null, { status: 404 })
+
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+
+  // If the avatar is stored in Supabase Storage, download it with the service
+  // role key so it works regardless of whether the bucket is public or private.
+  if (supabaseOrigin && user.avatar_url.startsWith(supabaseOrigin)) {
+    const urlPath = new URL(user.avatar_url).pathname
+    // pathname is one of:
+    //   /storage/v1/object/public/<bucket>/<path>
+    //   /storage/v1/object/<bucket>/<path>
+    const match = urlPath.match(/^\/storage\/v1\/object\/(?:public\/)?([^/]+)\/(.+)$/)
+    if (match) {
+      const [, bucket, storagePath] = match
+      const { data, error } = await supabaseServer.storage.from(bucket).download(storagePath)
+      if (error || !data) return new NextResponse(null, { status: 404 })
+      const buffer = await data.arrayBuffer()
+      return new NextResponse(buffer, {
+        headers: {
+          "Content-Type": data.type || "image/jpeg",
+          "Cache-Control": "public, max-age=3600",
+        },
+      })
+    }
+  }
+
+  // Fallback for external URLs (e.g. Google OAuth profile pictures).
+  const response = await fetch(user.avatar_url)
+  if (!response.ok) return new NextResponse(null, { status: 404 })
+  const buffer = await response.arrayBuffer()
+  return new NextResponse(buffer, {
+    headers: {
+      "Content-Type": response.headers.get("content-type") ?? "image/jpeg",
+      "Cache-Control": "public, max-age=3600",
+    },
+  })
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
