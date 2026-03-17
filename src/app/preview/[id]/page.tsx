@@ -16,7 +16,7 @@ export default async function PreviewPage({
 
   const { data: tool } = await supabaseServer
     .from("tools")
-    .select("id, org_id, file_name, file_type")
+    .select("id, org_id, file_name, file_type, file_url")
     .eq("id", params.id)
     .single()
 
@@ -28,7 +28,22 @@ export default async function PreviewPage({
     )
   }
 
-  const storagePath = `${tool.org_id}/${tool.id}/${tool.file_name}`
+  // Extract storage path from file_url (handles safeStorageFilename sanitization)
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  let storagePath: string | null = null
+  if (supabaseOrigin && tool.file_url?.startsWith(supabaseOrigin)) {
+    const urlPath = new URL(tool.file_url).pathname
+    const match = urlPath.match(/^\/storage\/v1\/object\/(?:public\/)?tool-files\/(.+)$/)
+    if (match) storagePath = match[1]
+  }
+  if (!storagePath) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "system-ui", color: "#999", fontSize: 14 }}>
+        Could not load preview
+      </div>
+    )
+  }
+
   const { data: blob, error } = await supabaseServer.storage
     .from("tool-files")
     .download(storagePath)

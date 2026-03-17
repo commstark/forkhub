@@ -338,7 +338,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
             )}
           </div>
         ) : (
-          <div className="grid-2">
+          <div className="stack">
             {originals.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
           </div>
         )}
@@ -355,7 +355,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
         {forks.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-3)" }}>No forks made yet.</p>
         ) : (
-          <div className="grid-2">
+          <div className="stack">
             {forks.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
           </div>
         )}

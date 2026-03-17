@@ -245,8 +245,9 @@ function ImagePreview({ toolId, fileName }: { toolId: string; fileName: string }
   )
 }
 
-function PdfPreview({ fileUrl }: { fileUrl: string }) {
+function PdfPreview({ toolId }: { toolId: string }) {
   const [failed, setFailed] = useState(false)
+  const src = `/api/tools/${toolId}/file`
   if (failed) {
     return (
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: 40 }}>
@@ -254,14 +255,14 @@ function PdfPreview({ fileUrl }: { fileUrl: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>PDF preview unavailable in this browser.</p>
-        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn" style={{ fontSize: 12 }}>Open PDF</a>
+        <a href={src} target="_blank" rel="noopener noreferrer" className="btn" style={{ fontSize: 12 }}>Open PDF</a>
       </div>
     )
   }
   return (
     <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
       <iframe
-        src={fileUrl}
+        src={src}
         width="100%"
         height="600"
         style={{ display: "block", border: "none" }}
@@ -424,7 +425,7 @@ function Preview({ tool, expanded, onToggle }: { tool: Tool; expanded: boolean; 
     case "tsv":      return <CsvPreview toolId={tool.id} separator="\t" />
     case "image":    return <ImagePreview toolId={tool.id} fileName={tool.file_name} />
     case "code":     return <CodePreview toolId={tool.id} fileName={tool.file_name} />
-    case "pdf":      return <PdfPreview fileUrl={tool.file_url} />
+    case "pdf":      return <PdfPreview toolId={tool.id} />
     case "excel":    return <ExcelPreview data={tool.preview_data?.type === "excel" ? tool.preview_data : null} />
     case "zip":      return <ZipPreview data={tool.preview_data?.type === "zip" ? tool.preview_data : null} />
     case "docx":     return <DocxPreview data={tool.preview_data?.type === "docx" ? tool.preview_data : null} />

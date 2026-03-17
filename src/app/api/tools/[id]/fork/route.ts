@@ -59,7 +59,7 @@ export async function POST(
   // Fetch original tool — must be approved and in same org
   const { data: original, error: origError } = await supabaseServer
     .from("tools")
-    .select("id, title, description, category, classification, status, version_number, fork_count, org_id")
+    .select("id, title, description, category, classification, status, version_number, fork_count, org_id, creator_id")
     .eq("id", params.id)
     .eq("org_id", orgId)
     .single()
@@ -67,8 +67,8 @@ export async function POST(
   if (origError || !original) {
     return NextResponse.json({ error: "Original tool not found" }, { status: 404 })
   }
-  if (original.status !== "approved") {
-    return NextResponse.json({ error: "Can only fork approved tools" }, { status: 400 })
+  if (original.status === "in_review" || original.status === "draft") {
+    return NextResponse.json({ error: "Cannot fork a tool that is currently under review or in draft" }, { status: 400 })
   }
 
   // Determine routing — compute pipeline stages to support auto-approve when none apply
@@ -153,16 +153,11 @@ export async function POST(
   // Fire-and-forget email to original creator
   ;(async () => {
     try {
-      const { data: originalCreator } = await supabaseServer
-        .from("tools")
-        .select("creator_id")
-        .eq("id", original.id)
-        .single()
-      if (originalCreator?.creator_id) {
+      if (original.creator_id) {
         const { data: creatorUser } = await supabaseServer
           .from("users")
           .select("email")
-          .eq("id", originalCreator.creator_id)
+          .eq("id", original.creator_id)
           .single()
         if (creatorUser?.email) {
           sendEmail(

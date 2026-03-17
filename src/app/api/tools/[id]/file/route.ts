@@ -15,14 +15,24 @@ export async function GET(
 
   const { data: tool } = await supabaseServer
     .from("tools")
-    .select("id, org_id, file_name, file_type")
+    .select("id, org_id, file_name, file_type, file_url")
     .eq("id", params.id)
     .eq("org_id", auth.user.orgId)
     .single()
 
   if (!tool) return new NextResponse("Not found", { status: 404 })
 
-  const storagePath = `${tool.org_id}/${tool.id}/${tool.file_name}`
+  // Extract storage path from file_url (handles safeStorageFilename sanitization
+  // and versioned resubmit paths like org/id/v{ts}/filename)
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  let storagePath: string | null = null
+  if (supabaseOrigin && tool.file_url?.startsWith(supabaseOrigin)) {
+    const urlPath = new URL(tool.file_url).pathname
+    const match = urlPath.match(/^\/storage\/v1\/object\/(?:public\/)?tool-files\/(.+)$/)
+    if (match) storagePath = match[1]
+  }
+  if (!storagePath) return new NextResponse("File not found", { status: 404 })
+
   const { data: blob, error } = await supabaseServer.storage
     .from("tool-files")
     .download(storagePath)

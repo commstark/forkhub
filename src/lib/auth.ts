@@ -30,6 +30,7 @@ export const authOptions: NextAuthOptions = {
       const isPersonal   = PERSONAL_DOMAINS.has(domain) || !isWorkspace
 
       let org: { id: string } | null = null
+      let isNewOrg = false
 
       if (isWorkspace) {
         // Google Workspace: find or create a shared org for this domain
@@ -42,6 +43,7 @@ export const authOptions: NextAuthOptions = {
         if (existing) {
           org = existing
         } else {
+          isNewOrg = true
           const slug = domain.replace(/\./g, "-")
           const { data: newOrg, error } = await supabaseServer
             .from("orgs")
@@ -53,6 +55,7 @@ export const authOptions: NextAuthOptions = {
         }
       } else {
         // Personal email: always create a fresh personal org so users never share one
+        isNewOrg = true
         const baseName  = user.name ?? user.email.split("@")[0]
         const baseSlug  = `${user.email.split("@")[0]}-${Date.now()}`
         const { data: newOrg, error } = await supabaseServer
@@ -66,7 +69,7 @@ export const authOptions: NextAuthOptions = {
 
       if (!org) return false
 
-      // On first sign-in: create user as member — never auto-admin
+      // First user of a new org gets admin; subsequent users joining an existing org get member.
       const { data: existingUser } = await supabaseServer
         .from("users")
         .select("id")
@@ -80,7 +83,7 @@ export const authOptions: NextAuthOptions = {
           avatar_url: user.image,
           google_id: account?.providerAccountId,
           org_id: org.id,
-          role: "member",
+          role: isNewOrg ? "admin" : "member",
         })
         if (error) return false
 
