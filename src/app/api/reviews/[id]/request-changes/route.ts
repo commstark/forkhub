@@ -20,17 +20,31 @@ export async function POST(
   const notes = body.notes
   if (!notes?.trim()) return NextResponse.json({ error: "notes is required when requesting changes" }, { status: 400 })
 
-  const now = new Date().toISOString()
+  const stageAnswers = body.stage_answers ?? {}
+  const now          = new Date().toISOString()
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, current_stage_id, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  // Record stage action if pipeline-aware
+  if (review.current_stage_id) {
+    await supabaseServer.from("review_actions").insert({
+      review_id:     params.id,
+      stage_id:      review.current_stage_id,
+      actor_id:      auth.user.id,
+      action:        "changes_requested",
+      notes,
+      stage_answers: stageAnswers,
+      created_at:    now,
+    })
   }
 
   await Promise.all([

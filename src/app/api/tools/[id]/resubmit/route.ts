@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/lib/audit"
 import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { generatePreviewData } from "@/lib/preview-data"
+import { computeApplicableStages } from "@/lib/review-pipeline"
 
 export async function POST(
   request: NextRequest,
@@ -103,9 +104,20 @@ export async function POST(
     // change_description at top level so reviewers see what changed at a glance
     securityDoc = { change_description: changeDescription, ...securityDoc }
 
+    const applicableStages = await computeApplicableStages(orgId, tool.classification)
+    const stageIds         = applicableStages.map((s) => s.id)
+    const firstStageId     = stageIds[0] ?? null
+
     const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")
-      .insert({ tool_id: params.id, status: "pending", security_doc: securityDoc, created_at: new Date().toISOString() })
+      .insert({
+        tool_id:           params.id,
+        status:            "pending",
+        security_doc:      securityDoc,
+        applicable_stages: stageIds,
+        current_stage_id:  firstStageId,
+        created_at:        new Date().toISOString(),
+      })
       .select("id")
       .single()
 

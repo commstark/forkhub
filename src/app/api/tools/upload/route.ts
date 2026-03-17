@@ -7,6 +7,7 @@ import { notifySlack, slackMessages } from "@/lib/slack"
 import { buildInitialSecurityDoc } from "@/lib/security-doc"
 import { randomUUID } from "crypto"
 import { generatePreviewData } from "@/lib/preview-data"
+import { computeApplicableStages } from "@/lib/review-pipeline"
 
 const VALID_CLASSIFICATIONS = ["internal_noncustomer", "internal_customer", "external_customer"]
 
@@ -125,9 +126,20 @@ export async function POST(request: NextRequest) {
       securityDoc = buildInitialSecurityDoc({ file_type: file.type, file_name: file.name, classification, category })
     }
 
+    const applicableStages = await computeApplicableStages(orgId, classification)
+    const stageIds         = applicableStages.map((s) => s.id)
+    const firstStageId     = stageIds[0] ?? null
+
     const { data: review, error: reviewError } = await supabaseServer
       .from("reviews")
-      .insert({ tool_id: toolId, status: "pending", security_doc: securityDoc, created_at: now })
+      .insert({
+        tool_id:           toolId,
+        status:            "pending",
+        security_doc:      securityDoc,
+        applicable_stages: stageIds,
+        current_stage_id:  firstStageId,
+        created_at:        now,
+      })
       .select("id")
       .single()
     if (reviewError) console.error("Failed to create review:", reviewError.message)

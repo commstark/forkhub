@@ -4,6 +4,7 @@ import { getAuth } from "@/lib/getAuth"
 import { supabaseServer } from "@/lib/supabase-server"
 import { writeAuditLog } from "@/lib/audit"
 import { notifySlack, slackMessages } from "@/lib/slack"
+import { getNextStageId } from "@/lib/review-pipeline"
 
 export async function POST(
   request: NextRequest,
@@ -17,13 +18,13 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({}))
-  const notes = body.notes ?? null
-  const now = new Date().toISOString()
+  const notes         = body.notes ?? null
+  const stageAnswers  = body.stage_answers ?? {}
+  const now           = new Date().toISOString()
 
-  // Verify review exists and belongs to user's org via tool
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification)")
     .eq("id", params.id)
     .single()
 
@@ -32,6 +33,49 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const t = review.tool as any
+
+  // Record stage action if this review is pipeline-aware
+  if (review.current_stage_id) {
+    await supabaseServer.from("review_actions").insert({
+      review_id:     params.id,
+      stage_id:      review.current_stage_id,
+      actor_id:      auth.user.id,
+      action:        "approved",
+      notes,
+      stage_answers: stageAnswers,
+      created_at:    now,
+    })
+
+    // Advance to the next stage if one exists
+    const nextStageId = getNextStageId(
+      (review.applicable_stages as string[]) ?? [],
+      review.current_stage_id as string
+    )
+
+    if (nextStageId) {
+      await supabaseServer
+        .from("reviews")
+        .update({ current_stage_id: nextStageId, reviewer_id: auth.user.id })
+        .eq("id", params.id)
+
+      // Notify Slack that the review has advanced
+      notifySlack(auth.user.orgId, {
+        title:          t?.title ?? "Unknown",
+        creator:        auth.user.name ?? auth.user.email ?? "Unknown",
+        classification: t?.classification ?? "",
+        status:         "Stage approved — advancing to next stage",
+        notes:          notes ?? "",
+        url:            `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`,
+        review_url:     `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`,
+      })
+
+      return NextResponse.json({ success: true, advanced: true, next_stage_id: nextStageId })
+    }
+  }
+
+  // Final approval — last stage cleared (or no pipeline configured)
   await Promise.all([
     supabaseServer.from("reviews").update({
       status: "approved", notes, reviewer_id: auth.user.id, reviewed_at: now,
@@ -45,12 +89,10 @@ export async function POST(
     metadata: { tool_id: review.tool_id, notes },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = review.tool as any
   notifySlack(auth.user.orgId, slackMessages.approved(
     t?.title ?? "Unknown", auth.user.name ?? auth.user.email ?? "Unknown",
     t?.classification ?? "", notes, review.tool_id
   ))
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, advanced: false })
 }

@@ -24,6 +24,10 @@ Reviews:         GET  /api/reviews
 Approve:         POST /api/reviews/{id}/approve
 Reject:          POST /api/reviews/{id}/reject
 Request Changes: POST /api/reviews/{id}/request-changes
+Review Stages:   GET  /api/admin/review-stages
+Create Stage:    POST /api/admin/review-stages
+Update Stage:    PATCH /api/admin/review-stages/{id}
+Delete Stage:    DELETE /api/admin/review-stages/{id}
 Admin Users:     GET  /api/admin/users
 Change Role:     POST /api/admin/users/{id}/role
 Integrations:    GET  /api/admin/integrations
@@ -337,6 +341,39 @@ POST /api/admin/org                Body: {settings}
 GET  /api/admin/integrations
 POST /api/admin/integrations       Body: {key-value pairs}
 ```
+
+### Review Pipeline Stages (admin only)
+```
+GET    /api/admin/review-stages
+POST   /api/admin/review-stages
+Body: {
+  "name": "Legal Review",
+  "stage_order": 2,
+  "assigned_role": "reviewer",
+  "applies_to_classifications": ["external_customer"],  // [] = all
+  "custom_questions": [{"id": "q1", "question": "Does this tool store PII?", "required": true}],
+  "notify_email": true,
+  "notify_slack": true
+}
+
+PATCH  /api/admin/review-stages/{id}   Body: any subset of POST fields
+DELETE /api/admin/review-stages/{id}
+```
+
+Stages are ordered by `stage_order`. When a tool is submitted for review, the pipeline computes which stages apply to its classification and routes through them in order. Approving a stage advances to the next; the tool is only marked `approved` after the final stage clears.
+
+`applies_to_classifications`: empty array = stage applies to all. Use `["external_customer"]` to create a stage that only fires for customer-facing tools.
+
+### Review Action Response Fields
+Approve, reject, and request-changes all accept an optional `stage_answers` object:
+```
+POST /api/reviews/{id}/approve
+Body: {
+  "notes": "optional notes",
+  "stage_answers": {"q1": "No PII stored", "q2": "Uses Stripe API"}
+}
+```
+`stage_answers` keys match the `id` fields in the stage's `custom_questions`.
 
 ---
 
