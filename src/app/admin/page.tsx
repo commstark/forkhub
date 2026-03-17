@@ -175,11 +175,11 @@ function PipelinePreview({ stages }: { stages: ReviewStage[] }) {
                 <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>Auto-approved</span>
               ) : (
                 <>
-                  {applicable.map((s, i) => (
+                  {applicable.map((s, stageIdx) => (
                     <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
                       <span style={{ fontSize: 12, color: "var(--text-1)", fontWeight: 500 }}>{s.name}</span>
                       <span style={{ fontSize: 12, color: "var(--text-3)", margin: "0 6px" }}>→</span>
-                      {i === applicable.length - 1 && (
+                      {stageIdx === applicable.length - 1 && (
                         <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>Approved</span>
                       )}
                     </span>
