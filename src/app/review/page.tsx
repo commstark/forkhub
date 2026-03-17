@@ -60,13 +60,11 @@ export default function ReviewQueuePage() {
 
   return (
     <main className="page">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="page-title">Review Queue</h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
-            Security reviews for your organization
-          </p>
-        </div>
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="page-title">Review Queue</h1>
+        <p style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4, marginBottom: 0 }}>
+          Security reviews for your organization
+        </p>
       </div>
 
       <div className="tabs">
@@ -82,7 +80,11 @@ export default function ReviewQueuePage() {
       </div>
 
       {loading ? (
-        <div className="loading-state tab-content" key={activeTab + "-loading"}>Loading…</div>
+        <div className="tab-content" key={activeTab + "-loading"} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton skeleton-row" style={{ opacity: 1 - i * 0.15 }} />
+          ))}
+        </div>
       ) : reviews.length === 0 ? (
         <div className="empty-state tab-content" key={activeTab + "-empty"}>
           <p className="empty-state-title">No pending reviews</p>
@@ -102,8 +104,8 @@ export default function ReviewQueuePage() {
               <tr>
                 <th>Tool</th>
                 <th>Classification</th>
-                <th>File type</th>
-                <th>Creator</th>
+                <th>Type</th>
+                <th>Submitter</th>
                 <th>Submitted</th>
                 <th>Status</th>
               </tr>

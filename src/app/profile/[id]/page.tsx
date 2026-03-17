@@ -267,7 +267,22 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
     if (isOwn) loadKeys()
   }, [isOwn])
 
-  if (loading)             return <div className="loading-state">Loading…</div>
+  if (loading) return (
+    <main className="page-narrow skeleton-page">
+      <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
+        <div className="skeleton" style={{ width: 68, height: 68, borderRadius: "50%", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div className="skeleton skeleton-title" style={{ width: "40%", marginBottom: 8 }} />
+          <div className="skeleton skeleton-meta" style={{ width: "25%" }} />
+        </div>
+      </div>
+      <div className="skeleton skeleton-block" style={{ height: 80, marginBottom: 32 }} />
+      <div className="skeleton skeleton-label" />
+      <div className="skeleton skeleton-row" />
+      <div className="skeleton skeleton-row" style={{ width: "90%" }} />
+      <div className="skeleton skeleton-row" style={{ width: "75%" }} />
+    </main>
+  )
   if (notFound || !profile) return <div className="loading-state">Profile not found.</div>
 
   return (

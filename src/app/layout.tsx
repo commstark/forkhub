@@ -29,7 +29,24 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "The Fork Hub",
-  description: "AI tool library for your organization",
+  description: "AI tool library for your organization — share, review, and iterate on internal tools.",
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://forkhub.app"),
+  openGraph: {
+    title: "The Fork Hub",
+    description: "Share, review, and iterate on internal tools.",
+    type: "website",
+    siteName: "The Fork Hub",
+  },
+  twitter: {
+    card: "summary",
+    title: "The Fork Hub",
+    description: "Share, review, and iterate on internal tools.",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

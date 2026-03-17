@@ -77,6 +77,9 @@ type Fork = {
   creator: { name: string } | null
 }
 
+type ReviewStage = { id: string; name: string; assigned_role: string }
+type ToolReview  = { id: string; status: string; current_stage_id: string | null; applicable_stages: ReviewStage[] }
+
 type LineageNode = {
   id: string
   title: string
@@ -557,6 +560,59 @@ function LiveUrlSection({
   )
 }
 
+// ─── In-Review Banner ─────────────────────────────────────────────────────────
+
+function InReviewBanner({ tool, review }: { tool: Tool; review: ToolReview | null }) {
+  if (tool.status !== "in_review" && tool.status !== "changes_requested") return null
+
+  const isChanges = tool.status === "changes_requested"
+  const stages    = review?.applicable_stages ?? []
+  const currentId = review?.current_stage_id ?? null
+  const currentStage = stages.find((s) => s.id === currentId)
+
+  const bg     = isChanges ? "rgba(184,134,11,0.06)" : "rgba(148,163,184,0.06)"
+  const border = isChanges ? "rgba(184,134,11,0.25)" : "rgba(148,163,184,0.25)"
+  const color  = isChanges ? "#b8860b" : "#64748b"
+
+  return (
+    <div style={{
+      background: bg, border: `1px solid ${border}`,
+      borderRadius: "var(--r-card)", padding: "12px 16px",
+      marginBottom: 24, display: "flex", alignItems: "center",
+      justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
+        <div>
+          <span style={{ fontSize: 13, fontWeight: 600, color }}>
+            {isChanges ? "Changes requested" : "Under review"}
+          </span>
+          {currentStage && (
+            <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>
+              · waiting on {currentStage.name} ({currentStage.assigned_role})
+            </span>
+          )}
+          {stages.length > 1 && (
+            <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 8 }}>
+              · stage {stages.findIndex((s) => s.id === currentId) + 1} of {stages.length}
+            </span>
+          )}
+        </div>
+      </div>
+      {review && (
+        <Link
+          href={`/review/${review.id}`}
+          style={{ fontSize: 12, color, textDecoration: "none", fontWeight: 500, whiteSpace: "nowrap" }}
+          onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline" }}
+          onMouseOut={(e)  => { (e.currentTarget as HTMLElement).style.textDecoration = "none" }}
+        >
+          View review →
+        </Link>
+      )}
+    </div>
+  )
+}
+
 // ─── Copy Button ──────────────────────────────────────────────────────────────
 
 function CopyButton({ tool }: { tool: Tool }) {
@@ -595,6 +651,7 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
   const [loading, setLoading]               = useState(true)
   const [notFound, setNotFound]             = useState(false)
   const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [review, setReview] = useState<ToolReview | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -610,12 +667,27 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
       setRatings(Array.isArray(ratingsData) ? ratingsData : [])
       setForks(Array.isArray(forksData) ? forksData : [])
       setLineage(Array.isArray(lineageData) ? lineageData : [])
+      if (toolData.status === "in_review" || toolData.status === "changes_requested") {
+        const reviewsData = await fetch(`/api/tools/${params.id}/reviews`).then((r) => r.json())
+        const latest = Array.isArray(reviewsData) ? reviewsData[0] : null
+        if (latest) setReview(latest)
+      }
       setLoading(false)
     }
     load()
   }, [params.id])
 
-  if (loading)            return <div className="loading-state">Loading…</div>
+  if (loading) return (
+    <main className="page-narrow skeleton-page">
+      <div className="skeleton skeleton-title" />
+      <div className="skeleton skeleton-meta" />
+      <div className="skeleton skeleton-block" />
+      <div className="skeleton skeleton-label" />
+      <div className="skeleton skeleton-row" />
+      <div className="skeleton skeleton-row" style={{ width: "85%" }} />
+      <div className="skeleton skeleton-row" style={{ width: "70%" }} />
+    </main>
+  )
   if (notFound || !tool)  return <div className="loading-state">Tool not found.</div>
 
   const isOwner =
@@ -625,6 +697,8 @@ export default function ToolDetailPage({ params }: { params: { id: string } }) {
     <main className="page-narrow">
 
       <Link href="/" className="back-link">← Browse</Link>
+
+      <InReviewBanner tool={tool} review={review} />
 
       {/* Header */}
       <section className="page-section">
