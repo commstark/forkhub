@@ -100,13 +100,15 @@ export async function GET(request: NextRequest) {
   }
 
   const enriched = mapped.filter((r) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const creatorId = (r.tool as any)?.creator_id as string | undefined
+    // Creators never see their own tool in the review queue (conflict of interest)
+    if (creatorId === auth.user.id) return false
     if (auth.user.role === "admin") return true
     // Reviews without a pipeline stage are visible to all reviewers (legacy)
     if (!r.current_stage_id || !r.current_stage) return true
     if (r.current_stage.assigned_role === "manager") {
       // Only the tool creator's manager sees this review
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const creatorId = (r.tool as any)?.creator_id as string | undefined
       if (!creatorId) return false
       return creatorManagerMap[creatorId] === auth.user.id
     }

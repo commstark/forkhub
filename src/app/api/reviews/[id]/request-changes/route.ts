@@ -34,6 +34,12 @@ export async function POST(
     return NextResponse.json({ error: "Review is no longer pending" }, { status: 409 })
   }
 
+  // Creators cannot review their own tools
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((review.tool as any)?.creator_id === auth.user.id) {
+    return NextResponse.json({ error: "You cannot review your own tool" }, { status: 403 })
+  }
+
   // Stage role verification
   if (review.current_stage_id && auth.user.role !== "admin") {
     const { data: stageRole } = await supabaseServer
