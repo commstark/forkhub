@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 
 type AdminUser = {
   id: string; name: string; email: string; avatar_url: string | null
-  role: string; department: string | null; created_at: string
+  role: string; department: string | null; manager_id: string | null; created_at: string
   stats: { originals: number; forks_made: number; avg_rating: number; total_ratings: number }
 }
 
@@ -177,7 +177,12 @@ function PipelinePreview({ stages }: { stages: ReviewStage[] }) {
                 <>
                   {applicable.map((s, stageIdx) => (
                     <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                      <span style={{ fontSize: 12, color: "var(--text-1)", fontWeight: 500 }}>{s.name}</span>
+                      <span style={{ fontSize: 12, color: "var(--text-1)", fontWeight: 500 }}>
+                        {s.name}
+                        {s.assigned_role === "manager" && (
+                          <span style={{ fontWeight: 400, color: "var(--text-3)", marginLeft: 4 }}>(creator&apos;s manager)</span>
+                        )}
+                      </span>
                       <span style={{ fontSize: 12, color: "var(--text-3)", margin: "0 6px" }}>→</span>
                       {stageIdx === applicable.length - 1 && (
                         <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>Approved</span>
@@ -300,6 +305,7 @@ function StageCard({
             <option value="reviewer">reviewer</option>
             <option value="admin">admin</option>
             <option value="member">member</option>
+            <option value="manager">manager (creator&apos;s manager)</option>
           </select>
         </div>
 
@@ -679,6 +685,7 @@ export default function AdminPage() {
               <tr>
                 <th>Name</th>
                 <th>Role</th>
+                <th>Manager</th>
                 <th>Department</th>
                 <th>Joined</th>
                 <th style={{ textAlign: "right" }}>V1s</th>
@@ -699,6 +706,27 @@ export default function AdminPage() {
                     <p style={{ fontSize: 11, color: "var(--text-3)", margin: "2px 0 0" }}>{u.email}</p>
                   </td>
                   <td><span className={`badge ${roleClass(u.role)}`}>{u.role}</span></td>
+                  <td>
+                    <select
+                      value={u.manager_id ?? ""}
+                      onChange={async (e) => {
+                        const manager_id = e.target.value || null
+                        await fetch(`/api/admin/users/${u.id}/manager`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ manager_id }),
+                        })
+                        setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, manager_id } : x))
+                      }}
+                      className="input"
+                      style={{ fontSize: 12, padding: "3px 6px", minWidth: 120 }}
+                    >
+                      <option value="">— none —</option>
+                      {users.filter((m) => m.id !== u.id).map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td style={{ color: "var(--text-2)" }}>{u.department ?? "—"}</td>
                   <td style={{ color: "var(--text-2)" }}>{new Date(u.created_at).toLocaleDateString()}</td>
                   <td style={{ textAlign: "right", color: "var(--text-1)" }}>{u.stats.originals}</td>
@@ -710,7 +738,7 @@ export default function AdminPage() {
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", color: "var(--text-3)", padding: "24px 16px" }}>
+                  <td colSpan={8} style={{ textAlign: "center", color: "var(--text-3)", padding: "24px 16px" }}>
                     No users match your search
                   </td>
                 </tr>

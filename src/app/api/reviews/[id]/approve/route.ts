@@ -14,10 +14,6 @@ export async function POST(
   const auth = await getAuth(request)
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  if (!["reviewer", "admin"].includes(auth.user.role)) {
-    return NextResponse.json({ error: "Requires reviewer or admin role" }, { status: 403 })
-  }
-
   const body = await request.json().catch(() => ({}))
   const notes         = body.notes ?? null
   const stageAnswers  = body.stage_answers ?? {}
@@ -25,7 +21,7 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, status, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, status, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification, creator_id)")
     .eq("id", params.id)
     .single()
 
@@ -37,16 +33,31 @@ export async function POST(
     return NextResponse.json({ error: "Review is no longer pending" }, { status: 409 })
   }
 
-  // Stage role verification: non-admins must match the stage's assigned_role
+  // Stage role verification
   if (review.current_stage_id && auth.user.role !== "admin") {
     const { data: stageRole } = await supabaseServer
       .from("review_stages")
       .select("assigned_role")
       .eq("id", review.current_stage_id)
       .single()
-    if (stageRole?.assigned_role && auth.user.role !== stageRole.assigned_role) {
-      return NextResponse.json({ error: `This stage requires role: ${stageRole.assigned_role}` }, { status: 403 })
+    if (stageRole?.assigned_role) {
+      if (stageRole.assigned_role === "manager") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const creatorId = (review.tool as any)?.creator_id as string | undefined
+        const managerId = creatorId
+          ? await supabaseServer.from("users").select("manager_id").eq("id", creatorId).single()
+              .then(({ data }) => data?.manager_id ?? null)
+          : null
+        if (!managerId || managerId !== auth.user.id) {
+          return NextResponse.json({ error: "This stage requires the tool creator's manager" }, { status: 403 })
+        }
+      } else if (auth.user.role !== stageRole.assigned_role) {
+        return NextResponse.json({ error: `This stage requires role: ${stageRole.assigned_role}` }, { status: 403 })
+      }
     }
+  } else if (!review.current_stage_id && !["reviewer", "admin"].includes(auth.user.role)) {
+    // No pipeline — require at least reviewer role
+    return NextResponse.json({ error: "Requires reviewer or admin role" }, { status: 403 })
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,28 +116,41 @@ export async function POST(
           .eq("id", nextStageId)
           .single()
         if (nextStage?.notify_email !== false && nextStage?.assigned_role) {
-          const { data: reviewers } = await supabaseServer
-            .from("users")
-            .select("email")
-            .eq("org_id", auth.user.orgId)
-            .eq("role", nextStage.assigned_role)
-          if (reviewers) {
-            const reviewUrl = `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`
-            for (const reviewer of reviewers) {
-              if (reviewer.email) {
-                sendEmail(
-                  reviewer.email,
-                  `[ForkHub] ${t?.title ?? "Tool"} advanced to ${nextStage.name}`,
-                  stageAdvancedEmail({
-                    reviewerEmail: reviewer.email,
-                    toolTitle: t?.title ?? "Unknown",
-                    stageName: nextStage.name,
-                    approvedByName: auth.user.name ?? auth.user.email ?? "Unknown",
-                    reviewUrl,
-                  })
-                )
+          const reviewUrl = `${process.env.NEXTAUTH_URL ?? ""}/review/${params.id}`
+
+          let recipientEmails: string[] = []
+          if (nextStage.assigned_role === "manager") {
+            // Notify only the tool creator's manager
+            const creatorId = t?.creator_id as string | undefined
+            if (creatorId) {
+              const { data: creatorData } = await supabaseServer
+                .from("users").select("manager_id").eq("id", creatorId).single()
+              if (creatorData?.manager_id) {
+                const { data: managerUser } = await supabaseServer
+                  .from("users").select("email").eq("id", creatorData.manager_id).single()
+                if (managerUser?.email) recipientEmails = [managerUser.email]
               }
             }
+          } else {
+            const { data: reviewers } = await supabaseServer
+              .from("users").select("email")
+              .eq("org_id", auth.user.orgId)
+              .eq("role", nextStage.assigned_role)
+            recipientEmails = (reviewers ?? []).map((r) => r.email).filter(Boolean) as string[]
+          }
+
+          for (const email of recipientEmails) {
+            sendEmail(
+              email,
+              `[ForkHub] ${t?.title ?? "Tool"} advanced to ${nextStage.name}`,
+              stageAdvancedEmail({
+                reviewerEmail: email,
+                toolTitle: t?.title ?? "Unknown",
+                stageName: nextStage.name,
+                approvedByName: auth.user.name ?? auth.user.email ?? "Unknown",
+                reviewUrl,
+              })
+            )
           }
         }
       } catch { /* email errors must not block the response */ }

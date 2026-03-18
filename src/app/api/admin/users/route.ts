@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   const { data: users, error } = await supabaseServer
     .from("users")
-    .select("id, name, email, avatar_url, role, department, created_at")
+    .select("id, name, email, avatar_url, role, department, manager_id, created_at")
     .eq("org_id", auth.user.orgId)
     .order("created_at", { ascending: true })
 

@@ -13,10 +13,6 @@ export async function POST(
   const auth = await getAuth(request)
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  if (!["reviewer", "admin"].includes(auth.user.role)) {
-    return NextResponse.json({ error: "Requires reviewer or admin role" }, { status: 403 })
-  }
-
   const body = await request.json().catch(() => ({}))
   const notes = body.notes
   if (!notes?.trim()) return NextResponse.json({ error: "notes is required when requesting changes" }, { status: 400 })
@@ -26,7 +22,7 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, status, current_stage_id, tool:tools!tool_id(id, org_id, title, classification)")
+    .select("id, tool_id, status, current_stage_id, tool:tools!tool_id(id, org_id, title, classification, creator_id)")
     .eq("id", params.id)
     .single()
 
@@ -38,16 +34,30 @@ export async function POST(
     return NextResponse.json({ error: "Review is no longer pending" }, { status: 409 })
   }
 
-  // Stage role verification: non-admins must match the stage's assigned_role
+  // Stage role verification
   if (review.current_stage_id && auth.user.role !== "admin") {
     const { data: stageRole } = await supabaseServer
       .from("review_stages")
       .select("assigned_role")
       .eq("id", review.current_stage_id)
       .single()
-    if (stageRole?.assigned_role && auth.user.role !== stageRole.assigned_role) {
-      return NextResponse.json({ error: `This stage requires role: ${stageRole.assigned_role}` }, { status: 403 })
+    if (stageRole?.assigned_role) {
+      if (stageRole.assigned_role === "manager") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const creatorId = (review.tool as any)?.creator_id as string | undefined
+        const managerId = creatorId
+          ? await supabaseServer.from("users").select("manager_id").eq("id", creatorId).single()
+              .then(({ data }) => data?.manager_id ?? null)
+          : null
+        if (!managerId || managerId !== auth.user.id) {
+          return NextResponse.json({ error: "This stage requires the tool creator's manager" }, { status: 403 })
+        }
+      } else if (auth.user.role !== stageRole.assigned_role) {
+        return NextResponse.json({ error: `This stage requires role: ${stageRole.assigned_role}` }, { status: 403 })
+      }
     }
+  } else if (!review.current_stage_id && !["reviewer", "admin"].includes(auth.user.role)) {
+    return NextResponse.json({ error: "Requires reviewer or admin role" }, { status: 403 })
   }
 
   // Record stage action if pipeline-aware

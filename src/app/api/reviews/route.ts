@@ -66,26 +66,52 @@ export async function GET(request: NextRequest) {
     return true
   })
 
-  // Attach stage info and filter by role for non-admins
-  const enriched = latestReviews
-    .map((r) => {
-      const currentStage = r.current_stage_id ? stageMap[r.current_stage_id] : null
-      const totalStages  = (r.applicable_stages as string[] | null)?.length ?? 0
-      const stageIndex   = totalStages > 0 && r.current_stage_id
-        ? ((r.applicable_stages as string[]).indexOf(r.current_stage_id) + 1)
-        : null
-      const stageInfo = currentStage && stageIndex
-        ? `Stage ${stageIndex} of ${totalStages}: ${currentStage.name}`
-        : null
-      return { ...r, stage_info: stageInfo, current_stage: currentStage }
-    })
-    .filter((r) => {
-      if (auth.user.role === "admin") return true
-      // Reviewers only see reviews at stages matching their assigned role,
-      // or reviews without a pipeline (legacy / no stages configured)
-      if (!r.current_stage_id || !r.current_stage) return true
-      return r.current_stage.assigned_role === auth.user.role
-    })
+  // Attach stage info
+  const mapped = latestReviews.map((r) => {
+    const currentStage = r.current_stage_id ? stageMap[r.current_stage_id] : null
+    const totalStages  = (r.applicable_stages as string[] | null)?.length ?? 0
+    const stageIndex   = totalStages > 0 && r.current_stage_id
+      ? ((r.applicable_stages as string[]).indexOf(r.current_stage_id) + 1)
+      : null
+    const stageInfo = currentStage && stageIndex
+      ? `Stage ${stageIndex} of ${totalStages}: ${currentStage.name}`
+      : null
+    return { ...r, stage_info: stageInfo, current_stage: currentStage }
+  })
+
+  // For manager-stage reviews, build a map of creator_id → manager_id so we can
+  // filter visibility correctly without an N+1 query.
+  let creatorManagerMap: Record<string, string | null> = {}
+  if (auth.user.role !== "admin") {
+    const managerStageCreatorIds = Array.from(new Set(
+      mapped
+        .filter((r) => r.current_stage?.assigned_role === "manager")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((r) => (r.tool as any)?.creator_id as string | undefined)
+        .filter(Boolean)
+    )) as string[]
+    if (managerStageCreatorIds.length > 0) {
+      const { data: creators } = await supabaseServer
+        .from("users")
+        .select("id, manager_id")
+        .in("id", managerStageCreatorIds)
+      for (const c of creators ?? []) creatorManagerMap[c.id] = c.manager_id
+    }
+  }
+
+  const enriched = mapped.filter((r) => {
+    if (auth.user.role === "admin") return true
+    // Reviews without a pipeline stage are visible to all reviewers (legacy)
+    if (!r.current_stage_id || !r.current_stage) return true
+    if (r.current_stage.assigned_role === "manager") {
+      // Only the tool creator's manager sees this review
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const creatorId = (r.tool as any)?.creator_id as string | undefined
+      if (!creatorId) return false
+      return creatorManagerMap[creatorId] === auth.user.id
+    }
+    return r.current_stage.assigned_role === auth.user.role
+  })
 
   return NextResponse.json(enriched)
 }
