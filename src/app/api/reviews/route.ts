@@ -54,8 +54,20 @@ export async function GET(request: NextRequest) {
     for (const s of stages ?? []) stageMap[s.id] = s
   }
 
+  // Keep only the most recent review per tool — if a tool was resubmitted after
+  // "changes_requested" a new review row is created; old rows must not appear.
+  // The query is already ordered by created_at desc, so first-seen wins.
+  const seenToolIds = new Set<string>()
+  const latestReviews = reviews.filter((r) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolId = (r.tool as any)?.id as string | undefined
+    if (!toolId || seenToolIds.has(toolId)) return false
+    seenToolIds.add(toolId)
+    return true
+  })
+
   // Attach stage info and filter by role for non-admins
-  const enriched = reviews
+  const enriched = latestReviews
     .map((r) => {
       const currentStage = r.current_stage_id ? stageMap[r.current_stage_id] : null
       const totalStages  = (r.applicable_stages as string[] | null)?.length ?? 0

@@ -737,22 +737,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         />
       )}
 
-      {/* Reviewer notes (current round) */}
-      {review.notes && (
-        <section className="page-section">
-          <p className="section-title">Reviewer Notes</p>
-          <div className="notes-box">
-            <p style={{ margin: 0 }}>{review.notes}</p>
-            {review.reviewer && (
-              <p style={{ fontSize: 12, color: "var(--text-3)", marginTop: 8, marginBottom: 0 }}>
-                — {review.reviewer.name}
-                {review.reviewed_at ? `, ${new Date(review.reviewed_at).toLocaleDateString()}` : ""}
-              </p>
-            )}
-          </div>
-        </section>
-      )}
-
       {/* Current security doc */}
       <section className="page-section">
         <p className="section-title">Current Security Review Document</p>
