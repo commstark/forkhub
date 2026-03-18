@@ -80,7 +80,7 @@ export async function POST(
   let stageIds: string[] = []
   let firstStageId: string | null = null
 
-  if (isMinorChange || classification === "internal_noncustomer") {
+  if (isMinorChange) {
     status = "approved"
   } else {
     const applicableStages = await computeApplicableStages(orgId, classification)
