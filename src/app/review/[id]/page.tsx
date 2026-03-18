@@ -183,7 +183,7 @@ function PipelineProgress({
 
   // Build the flat list of nodes (stages + optional Approved terminal)
   type PipelineNode = { id: string; name: string; role: string; dotBg: string; textColor: string; bold: boolean }
-  const nodes: PipelineNode[] = stages.map((stage, i) => {
+  const nodes: PipelineNode[] = stages.map((stage) => {
     const isCurrent   = stage.id === currentStageId && !isFullyApproved
     const isCompleted = completedStageIds.has(stage.id) || isFullyApproved
     return {
