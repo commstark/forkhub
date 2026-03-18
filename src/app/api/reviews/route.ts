@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
   // For manager-stage reviews, build a map of creator_id → manager_id so we can
   // filter visibility correctly without an N+1 query.
-  let creatorManagerMap: Record<string, string | null> = {}
+  const creatorManagerMap: Record<string, string | null> = {}
   if (auth.user.role !== "admin") {
     const managerStageCreatorIds = Array.from(new Set(
       mapped
