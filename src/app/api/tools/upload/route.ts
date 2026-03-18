@@ -198,6 +198,7 @@ export async function POST(request: NextRequest) {
       .from("reviews")
       .insert({
         tool_id:           toolId,
+        org_id:            orgId,
         status:            "pending",
         security_doc:      securityDoc,
         applicable_stages: stageIds,

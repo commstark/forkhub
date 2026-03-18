@@ -21,12 +21,12 @@ export async function POST(
 
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool_id, status, current_stage_id, applicable_stages, tool:tools!tool_id(id, org_id, title, classification, creator_id)")
+    .select("id, tool_id, status, current_stage_id, applicable_stages, tool:tools!tool_id(id, title, classification, creator_id)")
     .eq("id", params.id)
+    .eq("org_id", auth.user.orgId)
     .single()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
+  if (!review) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
   if (review.status !== "pending") {

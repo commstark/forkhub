@@ -15,15 +15,14 @@ export async function POST(
     return NextResponse.json({ error: "Request body must be a JSON object (security_doc)" }, { status: 400 })
   }
 
-  // Verify review's tool belongs to user's org
   const { data: review } = await supabaseServer
     .from("reviews")
-    .select("id, tool:tools!tool_id(org_id)")
+    .select("id")
     .eq("id", params.id)
+    .eq("org_id", auth.user.orgId)
     .single()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!review || (review.tool as any)?.org_id !== auth.user.orgId) {
+  if (!review) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 

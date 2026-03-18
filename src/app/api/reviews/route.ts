@@ -10,15 +10,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status") ?? "pending"
 
-  // Get all tool IDs in this org that are in review
-  const { data: orgTools } = await supabaseServer
-    .from("tools")
-    .select("id")
-    .eq("org_id", auth.user.orgId)
-
-  const toolIds = (orgTools ?? []).map((t) => t.id)
-  if (toolIds.length === 0) return NextResponse.json([])
-
   let query = supabaseServer
     .from("reviews")
     .select(`
@@ -27,7 +18,7 @@ export async function GET(request: NextRequest) {
       tool:tools!tool_id(id, title, classification, file_type, category, created_at, creator_id,
         creator:users!creator_id(name, avatar_url))
     `)
-    .in("tool_id", toolIds)
+    .eq("org_id", auth.user.orgId)
     .order("created_at", { ascending: false })
 
   if (status !== "all") {

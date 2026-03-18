@@ -224,6 +224,7 @@ export async function POST(
       .from("reviews")
       .insert({
         tool_id:           newToolId,
+        org_id:            orgId,
         status:            "pending",
         security_doc:      forkSecurityDoc,
         applicable_stages: stageIds,

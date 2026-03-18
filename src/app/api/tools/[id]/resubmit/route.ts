@@ -126,6 +126,7 @@ export async function POST(
       .from("reviews")
       .insert({
         tool_id:           params.id,
+        org_id:            orgId,
         status:            "pending",
         security_doc:      securityDoc,
         applicable_stages: stageIds,

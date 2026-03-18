@@ -19,15 +19,10 @@ export async function GET(
       reviewer:users!reviewer_id(name, avatar_url)
     `)
     .eq("id", params.id)
+    .eq("org_id", auth.user.orgId)
     .single()
 
   if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
-  // Verify tool belongs to user's org
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((data.tool as any)?.org_id !== auth.user.orgId) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
 
   // Fetch current stage details
   let currentStage = null
