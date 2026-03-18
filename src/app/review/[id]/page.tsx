@@ -287,7 +287,6 @@ function ActionPanel({
   reviewStatus,
   currentStage,
   stageResponses,
-  userRole,
   isOwnTool,
   onActionComplete,
 }: {
@@ -295,7 +294,6 @@ function ActionPanel({
   reviewStatus: string
   currentStage: StageObject | null
   stageResponses: Record<string, Record<string, string>> | Record<string, string> | null
-  userRole: string
   isOwnTool: boolean
   onActionComplete: () => void
 }) {
@@ -778,7 +776,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         reviewStatus={review.status}
         currentStage={review.current_stage}
         stageResponses={review.stage_responses}
-        userRole={userRole}
         isOwnTool={isOwnTool}
         onActionComplete={loadReview}
       />
