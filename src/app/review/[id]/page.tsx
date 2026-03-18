@@ -181,73 +181,79 @@ function PipelineProgress({
     stageActions.filter((a) => a.action === "approved").map((a) => a.stage_id)
   )
 
+  // Build the flat list of nodes (stages + optional Approved terminal)
+  type PipelineNode = { id: string; name: string; role: string; dotBg: string; textColor: string; bold: boolean }
+  const nodes: PipelineNode[] = stages.map((stage, i) => {
+    const isCurrent   = stage.id === currentStageId && !isFullyApproved
+    const isCompleted = completedStageIds.has(stage.id) || isFullyApproved
+    return {
+      id:        stage.id,
+      name:      stage.name,
+      role:      stage.assigned_role,
+      dotBg:     isCompleted ? "#16a34a" : isCurrent ? "#b45309" : "#d1d5db",
+      textColor: isCurrent ? "var(--text-1)" : isCompleted ? "#16a34a" : "var(--text-3)",
+      bold:      isCurrent || isCompleted,
+    }
+  })
+  if (isFullyApproved) {
+    nodes.push({ id: "__approved__", name: "Approved", role: "", dotBg: "#16a34a", textColor: "#16a34a", bold: true })
+  }
+
   return (
     <section className="page-section">
       <p className="section-title">Review Pipeline</p>
-      <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
-        {stages.map((stage, i) => {
-          const isCurrent   = stage.id === currentStageId && !isFullyApproved
-          const isCompleted = completedStageIds.has(stage.id) || (isFullyApproved)
-
-          const dotBg = isCompleted ? "#16a34a" : isCurrent ? "#b45309" : "#d1d5db"
-          const textColor = isCurrent ? "var(--text-1)" : isCompleted ? "#16a34a" : "var(--text-3)"
-
-          return (
-            <div key={stage.id} style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      {/* Two-row layout: dots+connectors on top, labels below — keeps all dots level */}
+      <div style={{ overflowX: "auto" }}>
+        {/* Row 1: dots and connectors */}
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          {nodes.map((node, i) => {
+            const isStageNode = node.id !== "__approved__"
+            const stage = isStageNode ? stages[i] : null
+            const isCurrent = stage ? stage.id === currentStageId && !isFullyApproved : false
+            const isCompleted = stage ? completedStageIds.has(stage.id) || isFullyApproved : node.id === "__approved__"
+            return (
+              <div key={node.id} style={{ display: "flex", alignItems: "center" }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: dotBg,
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: node.dotBg,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: isCurrent ? `0 0 0 3px ${dotBg}33` : "none",
-                  border: isCurrent ? `2px solid ${dotBg}` : "2px solid transparent",
+                  boxShadow: isCurrent ? `0 0 0 3px ${node.dotBg}33` : "none",
                   flexShrink: 0,
                 }}>
                   {isCompleted ? (
-                    <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                    <span style={{ color: "#fff", fontSize: 14, fontWeight: 700, lineHeight: 1 }}>✓</span>
                   ) : (
                     <span style={{ color: isCurrent ? "#fff" : "#9ca3af", fontSize: 11, fontWeight: 600 }}>{i + 1}</span>
                   )}
                 </div>
-                <div style={{ textAlign: "center", maxWidth: 80 }}>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: isCurrent ? 600 : 400, color: textColor, lineHeight: 1.3 }}>
-                    {stage.name}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 10, color: "var(--text-3)", marginTop: 1 }}>
-                    {stage.assigned_role}
-                  </p>
-                </div>
+                {i < nodes.length - 1 && (
+                  <div style={{ width: 36, height: 2, background: isCompleted ? "#16a34a" : "#e5e7eb", flexShrink: 0 }} />
+                )}
               </div>
-              {i < stages.length - 1 && (
-                <div style={{
-                  width: 32, height: 2, margin: "0 4px",
-                  marginBottom: 20,
-                  background: isCompleted ? "#16a34a" : "#e5e7eb",
-                  flexShrink: 0,
-                }} />
+            )
+          })}
+        </div>
+        {/* Row 2: labels, same slot widths as dots (32px dot + 36px line = 68px per non-last slot) */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, marginTop: 6 }}>
+          {nodes.map((node, i) => (
+            <div key={node.id} style={{
+              width: i < nodes.length - 1 ? 68 : 32,
+              flexShrink: 0,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              paddingRight: i < nodes.length - 1 ? 36 : 0,
+            }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: node.bold ? 600 : 400, color: node.textColor, lineHeight: 1.3, textAlign: "center" }}>
+                {node.name}
+              </p>
+              {node.role && (
+                <p style={{ margin: 0, fontSize: 10, color: "var(--text-3)", marginTop: 1, textAlign: "center" }}>
+                  {node.role}
+                </p>
               )}
             </div>
-          )
-        })}
-        {isFullyApproved && (
-          <>
-            <div style={{ width: 32, height: 2, margin: "0 4px", marginBottom: 20, background: "#16a34a", flexShrink: 0 }} />
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: "50%",
-                background: "#16a34a",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>✓</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#16a34a", textAlign: "center", maxWidth: 60 }}>
-                Approved
-              </p>
-            </div>
-          </>
-        )}
+          ))}
+        </div>
       </div>
-
       {/* Stage action history */}
       {stageActions.length > 0 && (
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
