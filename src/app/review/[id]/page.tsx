@@ -11,7 +11,7 @@ type Tool = {
   id: string; title: string; description: string; classification: string
   file_type: string; file_name: string; file_size: number; category: string
   version_number: number; created_at: string; org_id: string
-  creator: { name: string; avatar_url: string | null } | null
+  creator: { name: string; avatar_url: string | null; manager_id: string | null } | null
   creator_id: string
 }
 
@@ -288,6 +288,7 @@ function ActionPanel({
   currentStage,
   stageResponses,
   isOwnTool,
+  isAssignedApprover,
   onActionComplete,
 }: {
   reviewId: string
@@ -295,6 +296,7 @@ function ActionPanel({
   currentStage: StageObject | null
   stageResponses: Record<string, Record<string, string>> | Record<string, string> | null
   isOwnTool: boolean
+  isAssignedApprover: boolean
   onActionComplete: () => void
 }) {
   const [actionMode, setActionMode] = useState<"approve" | "changes" | "reject" | null>(null)
@@ -401,32 +403,30 @@ function ActionPanel({
       {/* Action buttons */}
       {!actionMode && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          {isOwnTool && (
-            <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0, fontStyle: "italic" }}>
-              You cannot review your own tool.
+          {(isOwnTool || !isAssignedApprover) && (
+            <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0, fontStyle: "italic", width: "100%" }}>
+              {isOwnTool
+                ? "You cannot review your own tool."
+                : `This stage is assigned to a different ${currentStage?.assigned_role ?? "role"}.`}
             </p>
           )}
-          <button
-            disabled={isOwnTool}
-            onClick={() => !isOwnTool && setActionMode("approve")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #16a34a", background: "#f0fdf4", color: "#15803d", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
-          >
-            Approve
-          </button>
-          <button
-            disabled={isOwnTool}
-            onClick={() => !isOwnTool && setActionMode("changes")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d97706", background: "#fffbeb", color: "#92400e", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
-          >
-            Request Changes
-          </button>
-          <button
-            disabled={isOwnTool}
-            onClick={() => !isOwnTool && setActionMode("reject")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #dc2626", background: "#fef2f2", color: "#b91c1c", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
-          >
-            Reject
-          </button>
+          {(() => {
+            const blocked = isOwnTool || !isAssignedApprover
+            const btnStyle = (border: string, bg: string, color: string) => ({
+              padding: "8px 18px", borderRadius: 6, border: `1px solid ${border}`,
+              background: bg, color, fontSize: 13, fontWeight: 600,
+              cursor: blocked ? "not-allowed" as const : "pointer" as const,
+              opacity: blocked ? 0.35 : 1,
+            })
+            return (<>
+              <button disabled={blocked} onClick={() => !blocked && setActionMode("approve")}
+                style={btnStyle("#16a34a", "#f0fdf4", "#15803d")}>Approve</button>
+              <button disabled={blocked} onClick={() => !blocked && setActionMode("changes")}
+                style={btnStyle("#d97706", "#fffbeb", "#92400e")}>Request Changes</button>
+              <button disabled={blocked} onClick={() => !blocked && setActionMode("reject")}
+                style={btnStyle("#dc2626", "#fef2f2", "#b91c1c")}>Reject</button>
+            </>)
+          })()}
         </div>
       )}
 
@@ -659,7 +659,17 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const tool        = review.tool
   const creatorName = tool?.creator?.name ?? history?.tool.creator?.name ?? null
   const userRole    = session?.user?.role ?? "member"
-  const isOwnTool   = !!tool?.creator_id && tool.creator_id === session?.user?.id
+  const userId      = session?.user?.id ?? ""
+  const isOwnTool   = !!tool?.creator_id && tool.creator_id === userId
+
+  // Determine if the current user is the designated approver for the current stage
+  const assignedRole = review.current_stage?.assigned_role ?? null
+  const isAssignedApprover: boolean = (() => {
+    if (!review.current_stage) return userRole === "reviewer" || userRole === "admin"
+    if (userRole === "admin") return true
+    if (assignedRole === "manager") return userId === (tool?.creator?.manager_id ?? null)
+    return userRole === assignedRole
+  })()
 
   return (
     <main className="page-narrow">
@@ -777,6 +787,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         currentStage={review.current_stage}
         stageResponses={review.stage_responses}
         isOwnTool={isOwnTool}
+        isAssignedApprover={isAssignedApprover}
         onActionComplete={loadReview}
       />
 

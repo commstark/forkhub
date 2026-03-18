@@ -15,7 +15,7 @@ export async function GET(
     .select(`
       id, status, notes, security_doc, created_at, reviewed_at,
       current_stage_id, applicable_stages, stage_responses,
-      tool:tools!tool_id(*, creator:users!creator_id(name, avatar_url)),
+      tool:tools!tool_id(*, creator:users!creator_id(name, avatar_url, manager_id)),
       reviewer:users!reviewer_id(name, avatar_url)
     `)
     .eq("id", params.id)
