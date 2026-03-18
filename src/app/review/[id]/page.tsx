@@ -288,6 +288,7 @@ function ActionPanel({
   currentStage,
   stageResponses,
   userRole,
+  isOwnTool,
   onActionComplete,
 }: {
   reviewId: string
@@ -295,6 +296,7 @@ function ActionPanel({
   currentStage: StageObject | null
   stageResponses: Record<string, Record<string, string>> | Record<string, string> | null
   userRole: string
+  isOwnTool: boolean
   onActionComplete: () => void
 }) {
   const [actionMode, setActionMode] = useState<"approve" | "changes" | "reject" | null>(null)
@@ -317,7 +319,7 @@ function ActionPanel({
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const canAct = reviewStatus === "pending" && (userRole === "reviewer" || userRole === "admin")
+  const canAct = reviewStatus === "pending"
   if (!canAct) return null
 
   const questions = currentStage?.custom_questions ?? []
@@ -400,22 +402,30 @@ function ActionPanel({
 
       {/* Action buttons */}
       {!actionMode && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {isOwnTool && (
+            <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0, fontStyle: "italic" }}>
+              You cannot review your own tool.
+            </p>
+          )}
           <button
-            onClick={() => setActionMode("approve")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #16a34a", background: "#f0fdf4", color: "#15803d", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            disabled={isOwnTool}
+            onClick={() => !isOwnTool && setActionMode("approve")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #16a34a", background: "#f0fdf4", color: "#15803d", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
           >
             Approve
           </button>
           <button
-            onClick={() => setActionMode("changes")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d97706", background: "#fffbeb", color: "#92400e", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            disabled={isOwnTool}
+            onClick={() => !isOwnTool && setActionMode("changes")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d97706", background: "#fffbeb", color: "#92400e", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
           >
             Request Changes
           </button>
           <button
-            onClick={() => setActionMode("reject")}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #dc2626", background: "#fef2f2", color: "#b91c1c", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            disabled={isOwnTool}
+            onClick={() => !isOwnTool && setActionMode("reject")}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #dc2626", background: "#fef2f2", color: "#b91c1c", fontSize: 13, fontWeight: 600, cursor: isOwnTool ? "not-allowed" : "pointer", opacity: isOwnTool ? 0.4 : 1 }}
           >
             Reject
           </button>
@@ -651,6 +661,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const tool        = review.tool
   const creatorName = tool?.creator?.name ?? history?.tool.creator?.name ?? null
   const userRole    = session?.user?.role ?? "member"
+  const isOwnTool   = !!tool?.creator_id && tool.creator_id === session?.user?.id
 
   return (
     <main className="page-narrow">
@@ -768,6 +779,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         currentStage={review.current_stage}
         stageResponses={review.stage_responses}
         userRole={userRole}
+        isOwnTool={isOwnTool}
         onActionComplete={loadReview}
       />
 
