@@ -281,7 +281,7 @@ export default function HomePage() {
         }
         .lp-btn { display:inline-block;background:#c2724f;color:#fff;font-weight:600;letter-spacing:-0.01em;text-decoration:none;border-radius:9px;transition:background 0.15s,transform 0.15s; }
         .lp-btn:hover { background:#b45c39;transform:translateY(-1px); }
-        .lp-step-ghost { position:absolute;top:12px;right:16px;font-size:96px;font-weight:800;line-height:1;color:rgba(255,255,255,0.04);letter-spacing:-0.06em;user-select:none;pointer-events:none; }
+        .lp-step-ghost { position:absolute;top:12px;right:16px;font-size:96px;font-weight:800;line-height:1;color:rgba(0,0,0,0.04);letter-spacing:-0.06em;user-select:none;pointer-events:none; }
         .lp-feat-row { display:grid;grid-template-columns:220px 1fr;padding:22px 0;gap:40px;align-items:start;border-bottom:1px solid rgba(255,255,255,0.05); }
         .lp-feat-row:first-child { border-top:1px solid rgba(255,255,255,0.05); }
         @media(max-width:900px){
@@ -326,7 +326,7 @@ export default function HomePage() {
             Your team builds tools<br />with AI. Now there&apos;s<br />
             <span style={{ color: "rgba(255,255,255,0.3)" }}>a place for them.</span>
           </h1>
-          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.36)", lineHeight: 1.7, margin: "0 auto 36px", maxWidth: 460 }}>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.36)", lineHeight: 1.7, margin: "0 auto 36px", maxWidth: 540 }}>
             Store, review, share, and fork. With a full security pipeline built in.
           </p>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
@@ -347,26 +347,26 @@ export default function HomePage() {
       <Marquee />
 
       {/* ══ HOW IT WORKS ══ */}
-      <section style={{ background: "#0a0d1c", padding: "96px 24px" }}>
+      <section style={{ background: "#f8f6f3", padding: "96px 24px" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
           <Reveal style={{ marginBottom: 64 }}>
-            <h2 className="lp-h2" style={{ fontSize: 48, fontWeight: 700, letterSpacing: "-0.035em", color: "#fff", margin: 0, lineHeight: 1.1 }}>
+            <h2 className="lp-h2" style={{ fontSize: 48, fontWeight: 700, letterSpacing: "-0.035em", color: "#1c1917", margin: 0, lineHeight: 1.1 }}>
               From build to company-wide.<br />
-              <span style={{ color: "rgba(255,255,255,0.25)" }}>In minutes.</span>
+              <span style={{ color: "rgba(0,0,0,0.25)" }}>In under a minute.</span>
             </h2>
           </Reveal>
-          <div className="lp-steps" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden" }}>
+          <div className="lp-steps" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: "rgba(0,0,0,0.05)", borderRadius: 14, overflow: "hidden" }}>
             {[
               { n: "01", title: "Build",  desc: "Your team uses Claude, Cursor, or any AI agent to build tools — HTML, Python, Jupyter, anything." },
               { n: "02", title: "Upload", desc: "One API call. The AI uploads the tool, fills out the STRIDE security review, and submits for approval." },
-              { n: "03", title: "Share",  desc: "Approved tools get a live URL. Fork for clients. Change the branding. Share in two minutes." },
+              { n: "03", title: "Share",  desc: "Approved tools get a live URL. Fork for clients. Change the branding. Share in under a minute." },
             ].map((s, i) => (
               <Reveal key={i} delay={i * 70}>
-                <div style={{ background: "#0a0d1c", padding: "40px 32px 44px", position: "relative", height: "100%", boxSizing: "border-box" }}>
+                <div style={{ background: "#f8f6f3", padding: "40px 32px 44px", position: "relative", height: "100%", boxSizing: "border-box" }}>
                   <div className="lp-step-ghost">{s.n}</div>
                   <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c2724f", margin: "0 0 10px" }}>Step {s.n}</p>
-                  <h3 style={{ fontSize: 28, fontWeight: 700, color: "#fff", margin: "0 0 14px", letterSpacing: "-0.03em" }}>{s.title}</h3>
-                  <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.7, margin: 0 }}>{s.desc}</p>
+                  <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", margin: "0 0 14px", letterSpacing: "-0.03em" }}>{s.title}</h3>
+                  <p style={{ fontSize: 14, color: "#78716c", lineHeight: 1.7, margin: 0 }}>{s.desc}</p>
                 </div>
               </Reveal>
             ))}
@@ -407,9 +407,8 @@ export default function HomePage() {
       <section style={{ background: "#fff", padding: "96px 24px", borderTop: "1px solid #f0ece6" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
           <Reveal style={{ marginBottom: 56 }}>
-            <p style={{ fontSize: 11, color: "#a8a29e", margin: "0 0 14px", fontFamily: "monospace", letterSpacing: "0.04em" }}>forkhub.vercel.app/live/80ff8582</p>
             <h2 className="lp-h2" style={{ fontSize: 52, fontWeight: 700, letterSpacing: "-0.04em", color: "#1c1917", margin: "0 0 14px", lineHeight: 1.05 }}>
-              Fork it.<br />Two minutes.
+              Fork it.<br />&lt;1 minute.
             </h2>
             <p style={{ fontSize: 15, color: "#78716c", margin: 0, maxWidth: 420, lineHeight: 1.65 }}>
               Same tool, different client, different brand. Every approved tool gets a permanent live URL.
