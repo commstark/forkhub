@@ -228,7 +228,7 @@ function PipelineProgress({
                   )}
                 </div>
                 {i < nodes.length - 1 && (
-                  <div style={{ width: 36, height: 2, background: isCompleted ? "#16a34a" : "#e5e7eb", flexShrink: 0 }} />
+                  <div style={{ width: 80, height: 2, background: isCompleted ? "#16a34a" : "#e5e7eb", flexShrink: 0 }} />
                 )}
               </div>
             )
@@ -242,7 +242,7 @@ function PipelineProgress({
             <div key={node.id} style={{
               width: 32,
               flexShrink: 0,
-              marginRight: i < nodes.length - 1 ? 36 : 0,
+              marginRight: i < nodes.length - 1 ? 80 : 0,
               display: "flex", flexDirection: "column", alignItems: "center",
               overflow: "visible",
             }}>
