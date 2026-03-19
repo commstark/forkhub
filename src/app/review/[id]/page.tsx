@@ -203,9 +203,10 @@ function PipelineProgress({
     <section className="page-section">
       <p className="section-title">Review Pipeline</p>
       {/* Two-row layout: dots+connectors on top, labels below — keeps all dots level */}
-      <div style={{ overflowX: "auto" }}>
+      {/* paddingLeft gives the first label room to overflow left without being clipped */}
+      <div style={{ overflowX: "auto", paddingLeft: 40, marginLeft: -40 }}>
         {/* Row 1: dots and connectors */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, paddingLeft: 40 }}>
           {nodes.map((node, i) => {
             const isStageNode = node.id !== "__approved__"
             const stage = isStageNode ? stages[i] : null
@@ -233,20 +234,23 @@ function PipelineProgress({
             )
           })}
         </div>
-        {/* Row 2: labels, same slot widths as dots (32px dot + 36px line = 68px per non-last slot) */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, marginTop: 6 }}>
+        {/* Row 2: each label slot is 32px (dot width) + marginRight 36px (connector width).
+            Labels are centered on the dot. Text wider than 32px overflows left/right visually;
+            the paddingLeft on the outer container absorbs the first label's left overflow. */}
+        <div style={{ display: "flex", alignItems: "flex-start", marginTop: 6, paddingLeft: 40 }}>
           {nodes.map((node, i) => (
             <div key={node.id} style={{
-              width: i < nodes.length - 1 ? 68 : 32,
+              width: 32,
               flexShrink: 0,
+              marginRight: i < nodes.length - 1 ? 36 : 0,
               display: "flex", flexDirection: "column", alignItems: "center",
-              paddingRight: i < nodes.length - 1 ? 36 : 0,
+              overflow: "visible",
             }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: node.bold ? 600 : 400, color: node.textColor, lineHeight: 1.3, textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: node.bold ? 600 : 400, color: node.textColor, lineHeight: 1.3, textAlign: "center", whiteSpace: "nowrap" }}>
                 {node.name}
               </p>
               {node.role && (
-                <p style={{ margin: 0, fontSize: 10, color: "var(--text-3)", marginTop: 1, textAlign: "center" }}>
+                <p style={{ margin: 0, fontSize: 10, color: "var(--text-3)", marginTop: 1, textAlign: "center", whiteSpace: "nowrap" }}>
                   {node.role}
                 </p>
               )}
