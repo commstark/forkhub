@@ -291,6 +291,101 @@ function PipelineProgress({
   )
 }
 
+// ── Stage Q&A (AI pre-filled answers, all stages) ────────────────────────────
+function StageQA({
+  stages,
+  stageResponses,
+  stageActions,
+  currentStageId,
+  reviewStatus,
+}: {
+  stages: StageObject[]
+  stageResponses: Record<string, unknown> | null
+  stageActions: StageAction[]
+  currentStageId: string | null
+  reviewStatus: string
+}) {
+  const stagesWithQ = stages.filter((s) => s.custom_questions?.length > 0)
+  if (stagesWithQ.length === 0) return null
+
+  // Normalise stage_responses → nested {stageId: {qId: answer}}
+  const aiAnswers: Record<string, Record<string, string>> = (() => {
+    if (!stageResponses) return {}
+    const vals = Object.values(stageResponses)
+    if (vals.length > 0 && vals[0] && typeof vals[0] === "object") {
+      return stageResponses as Record<string, Record<string, string>>
+    }
+    return {}
+  })()
+
+  // Reviewer-submitted answers per stage (from stage_actions)
+  const reviewerAnswers: Record<string, Record<string, string>> = {}
+  for (const action of stageActions) {
+    if (action.stage_answers && Object.keys(action.stage_answers).length > 0) {
+      reviewerAnswers[action.stage_id] = action.stage_answers
+    }
+  }
+
+  const completedIds = new Set(stageActions.filter((a) => a.action === "approved").map((a) => a.stage_id))
+  const isFullyApproved = reviewStatus === "approved"
+
+  return (
+    <section className="page-section">
+      <p className="section-title">Stage Questions &amp; AI-Prefilled Answers</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {stagesWithQ.map((stage) => {
+          const isCurrent   = stage.id === currentStageId && !isFullyApproved
+          const isCompleted = completedIds.has(stage.id) || isFullyApproved
+          const hasReviewer = !!reviewerAnswers[stage.id] && Object.keys(reviewerAnswers[stage.id]).length > 0
+          // Show reviewer's submitted answers for completed stages, AI-prefilled otherwise
+          const answers = isCompleted && hasReviewer ? reviewerAnswers[stage.id] : (aiAnswers[stage.id] ?? {})
+          const sourceLabel = isCompleted && hasReviewer ? "reviewer answers" : "AI-prefilled"
+          const accentColor = isCurrent ? "#b45309" : isCompleted ? "#16a34a" : "#d1d5db"
+
+          return (
+            <div key={stage.id} className="card card-pad" style={{ borderLeft: `3px solid ${accentColor}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>{stage.name}</p>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
+                  padding: "2px 8px", borderRadius: 4,
+                  background: isCurrent ? "#fef3c7" : isCompleted ? "#dcfce7" : "#f1f5f9",
+                  color:      isCurrent ? "#92400e"  : isCompleted ? "#15803d"  : "#64748b",
+                }}>
+                  {isCurrent ? "Current" : isCompleted ? "Completed" : "Upcoming"}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--text-3)", fontStyle: "italic" }}>{sourceLabel}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {stage.custom_questions.map((q) => (
+                  <div key={q.id}>
+                    <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 500, color: "var(--text-2)" }}>
+                      {q.question}{q.required && <span style={{ color: "#dc2626", marginLeft: 2 }}>*</span>}
+                    </p>
+                    {answers[q.id] ? (
+                      <p style={{
+                        margin: 0, fontSize: 13, color: "var(--text-1)", lineHeight: 1.6,
+                        background: "var(--bg)", padding: "7px 10px",
+                        borderRadius: 5, border: "1px solid var(--border)",
+                      }}>
+                        {answers[q.id]}
+                      </p>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-3)", fontStyle: "italic" }}>
+                        No answer provided
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ── Current Stage Questions + Action Buttons ─────────────────────────────────
 function ActionPanel({
   reviewId,
@@ -788,6 +883,17 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <SecurityDoc doc={review.security_doc.parent_security_doc} />
           </div>
         </section>
+      )}
+
+      {/* Stage Q&A — all stages with AI-prefilled and/or reviewer-submitted answers */}
+      {review.applicable_stage_objects.length > 0 && (
+        <StageQA
+          stages={review.applicable_stage_objects}
+          stageResponses={review.stage_responses}
+          stageActions={review.stage_actions}
+          currentStageId={review.current_stage_id}
+          reviewStatus={review.status}
+        />
       )}
 
       {/* Action Panel — shown to reviewers/admins for pending reviews */}
