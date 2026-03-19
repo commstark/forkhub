@@ -273,11 +273,11 @@ export default function HomePage() {
         .lp-nav { position:fixed;top:16px;left:0;right:0;z-index:200;display:flex;justify-content:center;padding:0 24px;pointer-events:none; }
         .lp-nav-inner {
           max-width:960px;width:100%;pointer-events:auto;
-          background:rgba(7,10,22,0.82);
+          background:rgba(248,246,243,0.88);
           backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-          border:1px solid rgba(255,255,255,0.07);border-radius:14px;
+          border:1px solid rgba(0,0,0,0.07);border-radius:14px;
           padding:10px 20px;display:flex;align-items:center;justify-content:space-between;
-          box-shadow:0 2px 16px rgba(0,0,0,0.4);
+          box-shadow:0 2px 16px rgba(0,0,0,0.07);
         }
         .lp-btn { display:inline-block;background:#c2724f;color:#fff;font-weight:600;letter-spacing:-0.01em;text-decoration:none;border-radius:9px;transition:background 0.15s,transform 0.15s; }
         .lp-btn:hover { background:#b45c39;transform:translateY(-1px); }
@@ -298,7 +298,7 @@ export default function HomePage() {
       {/* Nav */}
       <nav className="lp-nav">
         <div className="lp-nav-inner">
-          <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em" }}>
+          <span style={{ color: "#1c1917", fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em" }}>
             The <span style={{ color: "#c2724f" }}>Fork</span>Hub
           </span>
           <a href="/api/auth/signin" className="lp-btn" style={{ fontSize: 13, padding: "7px 16px" }}>Sign in →</a>
@@ -308,38 +308,38 @@ export default function HomePage() {
       {/* ══ HERO ══ */}
       <section style={{
         minHeight: "100vh",
-        background: "linear-gradient(165deg, #07091a 0%, #0d1526 55%, #111d30 100%)",
+        background: "linear-gradient(165deg, #faf8f5 0%, #f4f1ec 55%, #f0ece6 100%)",
         display: "flex", flexDirection: "column", alignItems: "center",
         paddingTop: 110, paddingBottom: 0, paddingLeft: 24, paddingRight: 24,
         position: "relative", overflow: "hidden",
       }}>
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
-        <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translateX(-50%)", width: 700, height: 500, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(194,114,79,0.055) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.025) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
+        <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translateX(-50%)", width: 700, height: 500, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(194,114,79,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
 
         <Reveal style={{ textAlign: "center", maxWidth: 800, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 28 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>The ForkHub</span>
-            <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 12 }}>—</span>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontStyle: "italic" }}>the github for humans</span>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(0,0,0,0.25)", fontFamily: "monospace" }}>The ForkHub</span>
+            <span style={{ color: "rgba(0,0,0,0.1)", fontSize: 12 }}>—</span>
+            <span style={{ fontSize: 11, color: "rgba(0,0,0,0.2)", fontStyle: "italic" }}>the github for humans</span>
           </div>
-          <h1 className="lp-hero-h" style={{ fontSize: 62, fontWeight: 700, lineHeight: 1.06, letterSpacing: "-0.04em", margin: "0 0 24px", color: "#fff" }}>
+          <h1 className="lp-hero-h" style={{ fontSize: 62, fontWeight: 700, lineHeight: 1.06, letterSpacing: "-0.04em", margin: "0 0 24px", color: "#1c1917" }}>
             Your team builds tools<br />with AI. Now there&apos;s<br />
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>a place for them.</span>
+            <span style={{ color: "rgba(0,0,0,0.28)" }}>a place for them.</span>
           </h1>
-          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.36)", lineHeight: 1.7, margin: "0 auto 36px", maxWidth: 540 }}>
+          <p style={{ fontSize: 16, color: "#78716c", lineHeight: 1.7, margin: "0 auto 36px", maxWidth: 540 }}>
             Store, review, share, and fork. With a full security pipeline built in.
           </p>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <a href="/api/auth/signin" className="lp-btn" style={{ fontSize: 15, padding: "13px 28px" }}>Get Started — Free</a>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: "0.03em" }}>No credit card · Works with Claude, Cursor, any AI tool</span>
+            <span style={{ fontSize: 11, color: "rgba(0,0,0,0.22)", letterSpacing: "0.03em" }}>No credit card · Works with Claude, Cursor, any AI tool</span>
           </div>
         </Reveal>
 
         <Reveal delay={100} style={{ width: "100%", maxWidth: 860, marginTop: 56, position: "relative", flexShrink: 0 }}>
-          <Frame url="forkhub.vercel.app/browse" dark tilt>
+          <Frame url="forkhub.vercel.app/browse" tilt>
             <BrowseMockup />
           </Frame>
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 100, background: "linear-gradient(transparent, #0d1526)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 100, background: "linear-gradient(transparent, #f4f1ec)", pointerEvents: "none" }} />
         </Reveal>
       </section>
 
@@ -363,7 +363,6 @@ export default function HomePage() {
             ].map((s, i) => (
               <Reveal key={i} delay={i * 70}>
                 <div style={{ background: "#f8f6f3", padding: "40px 32px 44px", position: "relative", height: "100%", boxSizing: "border-box" }}>
-                  <div className="lp-step-ghost">{s.n}</div>
                   <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c2724f", margin: "0 0 10px" }}>Step {s.n}</p>
                   <h3 style={{ fontSize: 28, fontWeight: 700, color: "#1c1917", margin: "0 0 14px", letterSpacing: "-0.03em" }}>{s.title}</h3>
                   <p style={{ fontSize: 14, color: "#78716c", lineHeight: 1.7, margin: 0 }}>{s.desc}</p>
