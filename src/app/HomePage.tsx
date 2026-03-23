@@ -238,10 +238,11 @@ function Dashboard({ accent, bg, border, textPrimary, textMuted, statusColor, la
 
 /* ── Marquee ───────────────────────────────────────────────────────────────── */
 const MARQUEE_ITEMS = [
-  "Client Health Dashboard","ACME Health Dashboard","STRIDE Threat Analyzer",
-  "Sprint Velocity Tracker","Onboarding Flow Builder","Budget Variance Report",
-  "Customer Churn Monitor","API Usage Dashboard","Sales Pipeline Tracker",
-  "Support Ticket Heatmap","Runway Calculator","Incident Response Runbook",
+  "Org Management","Modular Review Pipeline","Preview Links",
+  "AI Security Docs","STRIDE Threat Modeling","Fork & Version Control",
+  "Multi-Stage Approvals","Live Shareable URLs","Role-Based Access",
+  "Slack Notifications","API-First Architecture","Any File Type",
+  "Builder Profiles","Audit Trail","One-Prompt Upload",
 ]
 
 function Marquee() {
@@ -249,12 +250,15 @@ function Marquee() {
   return (
     <div style={{ overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "#070a16" }}>
       <div style={{ display: "flex", padding: "13px 0", animation: "lp-marquee 36s linear infinite", width: "max-content" }}>
-        {items.map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontWeight: 500, whiteSpace: "nowrap", padding: "0 18px" }}>{item}</span>
-            <span style={{ color: "rgba(194,114,79,0.35)", fontSize: 10 }}>·</span>
-          </div>
-        ))}
+        {items.map((item, i) => {
+          const isAccent = i % MARQUEE_ITEMS.length % 4 === 3
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 12, color: isAccent ? "#c2724f" : "#a8a29e", fontWeight: 500, whiteSpace: "nowrap", padding: "0 18px" }}>{item}</span>
+              <span style={{ color: "rgba(194,114,79,0.35)", fontSize: 10 }}>·</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -331,12 +335,11 @@ export default function HomePage() {
           </p>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <a href="/api/auth/signin" className="lp-btn" style={{ fontSize: 15, padding: "13px 28px" }}>Get Started — Free</a>
-            <span style={{ fontSize: 11, color: "rgba(0,0,0,0.22)", letterSpacing: "0.03em" }}>No credit card · Works with Claude, Cursor, any AI tool</span>
           </div>
         </Reveal>
 
         <Reveal delay={100} style={{ width: "100%", maxWidth: 860, marginTop: 56, position: "relative", flexShrink: 0 }}>
-          <Frame url="forkhub.vercel.app/browse" tilt>
+          <Frame url="www.theforkhub.net/browse" tilt>
             <BrowseMockup />
           </Frame>
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 100, background: "linear-gradient(transparent, #f4f1ec)", pointerEvents: "none" }} />
@@ -415,7 +418,7 @@ export default function HomePage() {
           </Reveal>
           <div className="lp-live" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
             <Reveal delay={40}>
-              <Frame url="forkhub.vercel.app/live/client-health-dashboard">
+              <Frame url="www.theforkhub.net/live/client-health-dashboard">
                 <Dashboard
                   accent="#c2724f" bg="#f4f1ed" border="#e8e0d6"
                   textPrimary="#1c1917" textMuted="#a8a29e"
@@ -426,7 +429,7 @@ export default function HomePage() {
               <p style={{ textAlign: "center", fontSize: 11, color: "#a8a29e", marginTop: 10 }}>Original · Copper warm branding</p>
             </Reveal>
             <Reveal delay={110}>
-              <Frame url="forkhub.vercel.app/live/acme-health-dashboard">
+              <Frame url="www.theforkhub.net/live/acme-health-dashboard">
                 <Dashboard
                   accent="#2563eb" bg="#f0f4ff" border="#dbeafe"
                   textPrimary="#0f172a" textMuted="#94a3b8"
@@ -476,7 +479,6 @@ export default function HomePage() {
             Stop losing tools<br />in Downloads folders.
           </h2>
           <a href="/api/auth/signin" className="lp-btn" style={{ fontSize: 16, padding: "14px 36px" }}>Get Started — Free</a>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.18)", marginTop: 16, letterSpacing: "0.02em" }}>No credit card required · Works with any AI coding tool</p>
         </Reveal>
       </section>
 
