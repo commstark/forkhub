@@ -28,22 +28,33 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "The Fork Hub",
-  description: "AI tool library for your organization — share, review, and iterate on internal tools.",
-  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://forkhub.app"),
+  title: {
+    default: "The Fork Hub — The Control Plane for Employee-Built AI Tools",
+    template: "%s — The Fork Hub",
+  },
+  description: "Your team is building tools with AI. The Fork Hub is where those tools get stored, reviewed, shared, and forked — with security reviews built in.",
+  keywords: ["internal tool marketplace", "shadow AI governance", "AI tool management", "vibe coding", "security review", "employee tools", "corporate tool store", "fork tools"],
+  authors: [{ name: "The Fork Hub" }],
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://www.theforkhub.net"),
+  robots: "index, follow",
+  themeColor: "#c2724f",
   openGraph: {
     title: "The Fork Hub",
-    description: "Share, review, and iterate on internal tools.",
+    description: "The corporate marketplace for AI-generated internal tools. Upload, review, share, and fork — with built-in security.",
     type: "website",
+    url: "https://www.theforkhub.net",
     siteName: "The Fork Hub",
+    images: [{ url: "https://www.theforkhub.net/api/og", width: 1200, height: 630, alt: "The Fork Hub" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "The Fork Hub",
-    description: "Share, review, and iterate on internal tools.",
+    description: "The corporate marketplace for AI-generated internal tools.",
+    images: ["https://www.theforkhub.net/api/og"],
   },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/icon.svg", type: "image/svg+xml" },
     ],
   },
