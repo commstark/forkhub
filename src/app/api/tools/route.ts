@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   // When there's a query, use the search_tools RPC for ilike + trigram similarity ordering
   if (q) {
-    const { data, error } = await supabaseServer.rpc("search_tools", {
+    const { data: rpcData, error: rpcError } = await supabaseServer.rpc("search_tools", {
       p_org_id: auth.user.orgId,
       p_query: q,
       p_status: status,
@@ -29,19 +29,21 @@ export async function GET(request: NextRequest) {
       p_sort: sort,
     })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    // Reshape flat creator columns into nested creator object (only when RPC succeeded)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tools: any[] = []
+    if (!rpcError && rpcData) {
+      tools = (rpcData).map(({ creator_name, creator_avatar_url, ...tool }: {
+        creator_name: string
+        creator_avatar_url: string | null
+        [key: string]: unknown
+      }) => ({
+        ...tool,
+        creator: { name: creator_name, avatar_url: creator_avatar_url },
+      }))
+    }
 
-    // Reshape flat creator columns into nested creator object
-    let tools = (data ?? []).map(({ creator_name, creator_avatar_url, ...tool }: {
-      creator_name: string
-      creator_avatar_url: string | null
-      [key: string]: unknown
-    }) => ({
-      ...tool,
-      creator: { name: creator_name, avatar_url: creator_avatar_url },
-    }))
-
-    // Fallback: if trigram RPC returned nothing, try a broader ilike search
+    // Fallback: if trigram RPC errored or returned nothing, try a broader ilike search
     if (tools.length === 0) {
       let fallback = supabaseServer
         .from("tools")
