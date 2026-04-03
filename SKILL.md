@@ -3,34 +3,42 @@ name: forkhub
 description: "Use this skill when interacting with The ForkHub — the corporate internal tool marketplace. Triggers: uploading tools, forking tools, searching tools, rating tools, sharing tools, managing reviews, admin tasks, or any ForkHub API interaction. Load this skill before any ForkHub operation."
 ---
 
+## BASE URL
+
+**All API calls go to: https://www.theforkhub.net**
+
+Never use forkhub.com, forkhub.vercel.app, or any other domain. The only production URL is https://www.theforkhub.net
+
+---
+
 # The ForkHub — AI Agent Skill File
 
 ## QUICK REFERENCE
 
 ```
-Upload:          POST  /api/tools/upload
-Fork/Update:     POST  /api/tools/{id}/fork
-Patch Metadata:  PATCH /api/tools/{id}
-Resubmit:        POST  /api/tools/{id}/resubmit
-Review History:  GET   /api/tools/{id}/review-history
-Browse:          GET   /api/tools?status=approved&q=...
-Tool Detail:     GET   /api/tools/{id}
-Rate:            POST /api/tools/{id}/rate
-Share:           POST /api/tools/{id}/sharing
-Live URL:        GET  /live/{id}  (public if sharing=link)
-My Keys:         GET  /api/keys
-Generate Key:    POST /api/keys/generate
-Reviews:         GET  /api/reviews
-Approve:         POST /api/reviews/{id}/approve
-Reject:          POST /api/reviews/{id}/reject
-Request Changes: POST /api/reviews/{id}/request-changes
-Review Stages:   GET  /api/admin/review-stages
-Create Stage:    POST /api/admin/review-stages
-Update Stage:    PATCH /api/admin/review-stages/{id}
-Delete Stage:    DELETE /api/admin/review-stages/{id}
-Admin Users:     GET  /api/admin/users
-Change Role:     POST /api/admin/users/{id}/role
-Integrations:    GET  /api/admin/integrations
+Upload:          POST  https://www.theforkhub.net/api/tools/upload
+Fork/Update:     POST  https://www.theforkhub.net/api/tools/{id}/fork
+Patch Metadata:  PATCH https://www.theforkhub.net/api/tools/{id}
+Resubmit:        POST  https://www.theforkhub.net/api/tools/{id}/resubmit
+Review History:  GET   https://www.theforkhub.net/api/tools/{id}/review-history
+Browse:          GET   https://www.theforkhub.net/api/tools?status=approved&q=...
+Tool Detail:     GET   https://www.theforkhub.net/api/tools/{id}
+Rate:            POST https://www.theforkhub.net/api/tools/{id}/rate
+Share:           POST https://www.theforkhub.net/api/tools/{id}/sharing
+Live URL:        GET  https://www.theforkhub.net/live/{id}  (public if sharing=link)
+My Keys:         GET  https://www.theforkhub.net/api/keys
+Generate Key:    POST https://www.theforkhub.net/api/keys/generate
+Reviews:         GET  https://www.theforkhub.net/api/reviews
+Approve:         POST https://www.theforkhub.net/api/reviews/{id}/approve
+Reject:          POST https://www.theforkhub.net/api/reviews/{id}/reject
+Request Changes: POST https://www.theforkhub.net/api/reviews/{id}/request-changes
+Review Stages:   GET  https://www.theforkhub.net/api/admin/review-stages
+Create Stage:    POST https://www.theforkhub.net/api/admin/review-stages
+Update Stage:    PATCH https://www.theforkhub.net/api/admin/review-stages/{id}
+Delete Stage:    DELETE https://www.theforkhub.net/api/admin/review-stages/{id}
+Admin Users:     GET  https://www.theforkhub.net/api/admin/users
+Change Role:     POST https://www.theforkhub.net/api/admin/users/{id}/role
+Integrations:    GET  https://www.theforkhub.net/api/admin/integrations
 ```
 
 Auth: `Authorization: Bearer sk_fh_...` or session cookie.
@@ -54,7 +62,7 @@ Corporate internal tool marketplace. Employees store, discover, fork, and build 
 
 ## ORG-SPECIFIC RULES (Customized per deployment)
 
-Check `GET /api/admin/integrations` for org-specific rules. Common examples:
+Check `GET https://www.theforkhub.net/api/admin/integrations` for org-specific rules. Common examples:
 
 - `deployment_platform` — Where tools must be deployed (e.g. "Corporate Vercel account only")
 - `banned_platforms` — Platforms that must never be used (e.g. "Railway, Render, Heroku")
@@ -87,7 +95,7 @@ Analyze the tool's code to determine classification. Do NOT blindly accept the u
 ## UPLOADING A TOOL
 
 ```
-POST /api/tools/upload
+POST https://www.theforkhub.net/api/tools/upload
 Content-Type: multipart/form-data
 
 Required: title, description, category, classification, file
@@ -101,7 +109,7 @@ Optional: stage_responses (JSON string — pre-fill stage question answers keyed
 3. **If `internal_noncustomer`** → upload without security_doc. Auto-approved. Done.
 4. **If `internal_customer` or `external_customer`**:
    a. Tell user: "This requires security review. Checking pipeline stages and analyzing code — may take a moment."
-   b. Fetch `GET /api/admin/review-stages` to get the org's pipeline
+   b. Fetch `GET https://www.theforkhub.net/api/admin/review-stages` to get the org's pipeline
    c. Filter to stages that apply to this classification (where `applies_to_classifications` is `[]` OR includes the classification)
    d. **If NO stages match** → upload without stage_responses. Will auto-approve (no pipeline configured for this classification). Tell user: "Uploaded and auto-approved — no review stages are configured for this classification." Done.
    e. **If stages match**:
@@ -119,7 +127,7 @@ Optional: stage_responses (JSON string — pre-fill stage question answers keyed
 For non-file changes (title typo, description update, category change):
 
 ```
-PATCH /api/tools/{id}
+PATCH https://www.theforkhub.net/api/tools/{id}
 Body: {"title": "new title", "description": "new description", "category": "new category"}
 ```
 
@@ -133,7 +141,7 @@ Body: {"title": "new title", "description": "new description", "category": "new 
 **Fork your own tool.** Creates a new version (V2, V3, etc.) with full audit trail.
 
 ```
-POST /api/tools/{your_tool_id}/fork
+POST https://www.theforkhub.net/api/tools/{your_tool_id}/fork
 ```
 
 See FORKING section for details.
@@ -145,7 +153,7 @@ See FORKING section for details.
 To replace the file on an existing tool without creating a new version:
 
 ```
-POST /api/tools/{id}/resubmit
+POST https://www.theforkhub.net/api/tools/{id}/resubmit
 Content-Type: multipart/form-data
 
 Required: file, change_description
@@ -167,7 +175,7 @@ Optional: description, security_doc
 Every tool tracks its full review history. When a tool goes through multiple rounds (submit → changes requested → resubmit → approved), all rounds are preserved.
 
 ```
-GET /api/tools/{id}/review-history
+GET https://www.theforkhub.net/api/tools/{id}/review-history
 ```
 
 Returns all review records in chronological order. Each record includes the reviewer's notes, security doc, and the `change_description` from resubmission.
@@ -179,7 +187,7 @@ The review detail page shows this as a visual timeline so reviewers see the full
 ## FORKING A TOOL
 
 ```
-POST /api/tools/{tool_id}/fork
+POST https://www.theforkhub.net/api/tools/{tool_id}/fork
 Content-Type: multipart/form-data
 
 Required: file (MUST be modified — no file = rejected), classification, change_type, change_description
@@ -210,7 +218,7 @@ Approved tools can be served live at a shareable URL — full-screen, no ForkHub
 
 ### Sharing modes:
 
-| Mode | Who can access /live/[id] |
+| Mode | Who can access https://www.theforkhub.net/live/[id] |
 |---|---|
 | `private` (default) | Org members only |
 | `link` | Anyone with the URL — no login needed |
@@ -218,7 +226,7 @@ Approved tools can be served live at a shareable URL — full-screen, no ForkHub
 
 ### Enable sharing:
 ```
-POST /api/tools/{id}/sharing
+POST https://www.theforkhub.net/api/tools/{id}/sharing
 Body: {"mode": "link"}
 ```
 
@@ -226,7 +234,7 @@ Only the tool creator or admin can change sharing. Tool must be approved.
 
 ### Share with a customer:
 1. Tool gets approved
-2. Set sharing to link: `POST /api/tools/{id}/sharing` with `{"mode": "link"}`
+2. Set sharing to link: `POST https://www.theforkhub.net/api/tools/{id}/sharing` with `{"mode": "link"}`
 3. Share the URL: `https://www.theforkhub.net/live/[tool-id]`
 4. Customer clicks → tool runs full-screen, no login needed
 5. Customer cannot see or access any other tools (UUIDs are unguessable)
@@ -247,7 +255,7 @@ Every org can configure an ordered sequence of review stages. Stages fire in ord
 **Always fetch stages before uploading a customer-classified tool.** The pipeline determines whether review is required at all and what questions reviewers will ask.
 
 ```
-GET /api/admin/review-stages
+GET https://www.theforkhub.net/api/admin/review-stages
 ```
 
 Returns all stages ordered by `stage_order`. Each stage has:
@@ -377,44 +385,44 @@ The `stage_responses` is submitted as a **separate** `stage_responses` form fiel
 
 ### Browse
 ```
-GET /api/tools?status=approved&q=search&category=...&classification=...&sort=newest|most_forked|highest_rated
+GET https://www.theforkhub.net/api/tools?status=approved&q=search&category=...&classification=...&sort=newest|most_forked|highest_rated
 ```
 
 ### Rate (cannot rate own tools)
 ```
-POST /api/tools/{id}/rate
+POST https://www.theforkhub.net/api/tools/{id}/rate
 Body: {"score": 1-5, "comment": "optional"}
 ```
 
 ### Reviews (reviewer/admin only for actions)
 ```
-GET  /api/reviews
-POST /api/reviews/{id}/approve           Body: {"notes": "optional"}
-POST /api/reviews/{id}/reject            Body: {"notes": "required"}
-POST /api/reviews/{id}/request-changes   Body: {"notes": "required"}
+GET  https://www.theforkhub.net/api/reviews
+POST https://www.theforkhub.net/api/reviews/{id}/approve           Body: {"notes": "optional"}
+POST https://www.theforkhub.net/api/reviews/{id}/reject            Body: {"notes": "required"}
+POST https://www.theforkhub.net/api/reviews/{id}/request-changes   Body: {"notes": "required"}
 ```
 
 ### API Keys
 ```
-POST /api/keys/generate    → Returns full key ONCE (sk_fh_...)
-GET  /api/keys             → List keys (prefix only)
-DELETE /api/keys/{id}      → Revoke
+POST https://www.theforkhub.net/api/keys/generate    → Returns full key ONCE (sk_fh_...)
+GET  https://www.theforkhub.net/api/keys             → List keys (prefix only)
+DELETE https://www.theforkhub.net/api/keys/{id}      → Revoke
 ```
 
 ### Admin (admin only)
 ```
-GET  /api/admin/users
-POST /api/admin/users/{id}/role    Body: {"role": "member|reviewer|admin"}
-GET  /api/admin/org
-POST /api/admin/org                Body: {settings}
-GET  /api/admin/integrations
-POST /api/admin/integrations       Body: {key-value pairs}
+GET  https://www.theforkhub.net/api/admin/users
+POST https://www.theforkhub.net/api/admin/users/{id}/role    Body: {"role": "member|reviewer|admin"}
+GET  https://www.theforkhub.net/api/admin/org
+POST https://www.theforkhub.net/api/admin/org                Body: {settings}
+GET  https://www.theforkhub.net/api/admin/integrations
+POST https://www.theforkhub.net/api/admin/integrations       Body: {key-value pairs}
 ```
 
 ### Review Pipeline Stages (admin only)
 ```
-GET    /api/admin/review-stages
-POST   /api/admin/review-stages
+GET    https://www.theforkhub.net/api/admin/review-stages
+POST   https://www.theforkhub.net/api/admin/review-stages
 Body: {
   "name": "Legal Review",
   "stage_order": 2,
@@ -425,8 +433,8 @@ Body: {
   "notify_slack": true
 }
 
-PATCH  /api/admin/review-stages/{id}   Body: any subset of POST fields
-DELETE /api/admin/review-stages/{id}
+PATCH  https://www.theforkhub.net/api/admin/review-stages/{id}   Body: any subset of POST fields
+DELETE https://www.theforkhub.net/api/admin/review-stages/{id}
 ```
 
 Stages are ordered by `stage_order`. When a tool is submitted for review, the pipeline computes which stages apply to its classification and routes through them in order. Approving a stage advances to the next; the tool is only marked `approved` after the final stage clears.
@@ -440,7 +448,7 @@ Stages are ordered by `stage_order`. When a tool is submitted for review, the pi
 ### Review Action Response Fields
 Approve, reject, and request-changes all accept an optional `stage_answers` object:
 ```
-POST /api/reviews/{id}/approve
+POST https://www.theforkhub.net/api/reviews/{id}/approve
 Body: {
   "notes": "optional notes",
   "stage_answers": {"q1": "No PII stored", "q2": "Uses Stripe API"}
@@ -449,7 +457,7 @@ Body: {
 `stage_answers` keys match the `id` fields in the stage's `custom_questions`.
 
 ### Review Queue — Stage Info
-`GET /api/reviews` now returns enriched reviews with:
+`GET https://www.theforkhub.net/api/reviews` now returns enriched reviews with:
 - `stage_info`: string like `"Stage 2 of 3: Legal Review"` (null if no pipeline)
 - `current_stage`: `{id, name, stage_order, assigned_role}` object or null
 
@@ -459,31 +467,31 @@ Body: {
 
 ### Upload a tool for internal use (no customer data)
 1. Analyze code → classification: `internal_noncustomer`
-2. `POST /api/tools/upload` → auto-approved
+2. `POST https://www.theforkhub.net/api/tools/upload` → auto-approved
 3. Done
 
 ### Upload a tool that touches customer data
 1. Analyze code → classification: `internal_customer` or `external_customer`
-2. `GET /api/admin/review-stages` — filter to applicable stages for this classification
+2. `GET https://www.theforkhub.net/api/admin/review-stages` — filter to applicable stages for this classification
 3. If no stages apply → upload without stage_responses, auto-approved
 4. If stages apply → fill security_doc + build stage_responses answering each stage's custom_questions from code analysis
-5. `POST /api/tools/upload` with security_doc and stage_responses
+5. `POST https://www.theforkhub.net/api/tools/upload` with security_doc and stage_responses
 6. Tell user: "Submitted for review. N stage(s): [names]. Track at /profile or /review."
 
 ### Fork with minor cosmetic change
 1. Modify the file (colors, labels, CSS)
-2. `POST /api/tools/{id}/fork` with `change_type: minor_change`
+2. `POST https://www.theforkhub.net/api/tools/{id}/fork` with `change_type: minor_change`
 3. Auto-approved
 
 ### Fork with major change
 1. Modify the file (functionality, data handling)
 2. Fill out security_doc if customer-facing
-3. `POST /api/tools/{id}/fork` with `change_type: major_change`
+3. `POST https://www.theforkhub.net/api/tools/{id}/fork` with `change_type: major_change`
 4. Routes through review if customer classification
 
 ### Share a tool with a customer
 1. Ensure tool is approved
-2. `POST /api/tools/{id}/sharing` with `{"mode": "link"}`
+2. `POST https://www.theforkhub.net/api/tools/{id}/sharing` with `{"mode": "link"}`
 3. Share: `https://www.theforkhub.net/live/[tool-id]`
 4. Customer clicks → tool runs → no login needed
 
@@ -504,4 +512,4 @@ Body: {
 - No quality gate: security review is the only gate
 - All file formats accepted
 - Web UI is view-only: all actions via API
-- Live tool serving: `/live/[id]` serves HTML tools full-screen
+- Live tool serving: `https://www.theforkhub.net/live/[id]` serves HTML tools full-screen
