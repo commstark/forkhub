@@ -227,7 +227,7 @@ Only the tool creator or admin can change sharing. Tool must be approved.
 ### Share with a customer:
 1. Tool gets approved
 2. Set sharing to link: `POST /api/tools/{id}/sharing` with `{"mode": "link"}`
-3. Share the URL: `[domain]/live/[tool-id]`
+3. Share the URL: `https://www.theforkhub.net/live/[tool-id]`
 4. Customer clicks → tool runs full-screen, no login needed
 5. Customer cannot see or access any other tools (UUIDs are unguessable)
 
@@ -484,7 +484,7 @@ Body: {
 ### Share a tool with a customer
 1. Ensure tool is approved
 2. `POST /api/tools/{id}/sharing` with `{"mode": "link"}`
-3. Share: `[domain]/live/[tool-id]`
+3. Share: `https://www.theforkhub.net/live/[tool-id]`
 4. Customer clicks → tool runs → no login needed
 
 ### Fork and share for a customer
