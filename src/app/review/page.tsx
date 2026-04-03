@@ -93,7 +93,7 @@ export default function ReviewQueuePage() {
     setUnarchivingId(id)
     const res = await fetch(`/api/tools/${id}/unarchive`, { method: "POST" })
     setUnarchivingId(null)
-    if (res.ok) setArchivedTools((prev) => prev.filter((t) => t.id !== id))
+    if (res.ok) router.push(`/tool/${id}`)
   }
 
   const isArchived = activeTab === "archived"
