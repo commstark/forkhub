@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const FORKHUB_API_URL = process.env.FORKHUB_API_URL ?? "https://forkhub.vercel.app";
+const FORKHUB_API_URL = process.env.FORKHUB_API_URL ?? "https://www.theforkhub.net";
 const FORKHUB_API_KEY = process.env.FORKHUB_API_KEY ?? "";
 
 function headers(extra?: Record<string, string>): Record<string, string> {

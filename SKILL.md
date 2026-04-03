@@ -25,6 +25,8 @@ Browse:          GET   https://www.theforkhub.net/api/tools?status=approved&q=..
 Tool Detail:     GET   https://www.theforkhub.net/api/tools/{id}
 Rate:            POST https://www.theforkhub.net/api/tools/{id}/rate
 Share:           POST https://www.theforkhub.net/api/tools/{id}/sharing
+Archive:         POST https://www.theforkhub.net/api/tools/{id}/archive
+Unarchive:       POST https://www.theforkhub.net/api/tools/{id}/unarchive  (admin only)
 Live URL:        GET  https://www.theforkhub.net/live/{id}  (public if sharing=link)
 My Keys:         GET  https://www.theforkhub.net/api/keys
 Generate Key:    POST https://www.theforkhub.net/api/keys/generate
@@ -377,6 +379,32 @@ The `stage_responses` is submitted as a **separate** `stage_responses` form fiel
     "[question-id]": "Your answer derived from code analysis"
   }
 }
+```
+
+---
+
+## ARCHIVING A TOOL
+
+Archive = soft delete. The record, file, and audit trail are kept forever. The live URL stops working (sharing is reset to private). Archived tools are hidden from browse and search by default.
+
+```
+POST https://www.theforkhub.net/api/tools/{id}/archive
+```
+
+- Creator or admin can archive. No request body needed.
+- If the tool had `sharing: link` or `sharing: public`, sharing is automatically reset to `private`.
+- Archived tools appear in a separate **Archived** section on the creator's profile.
+- Admins see all archived tools in the **Archived** tab of the Review Queue, with who archived them and when.
+
+```
+POST https://www.theforkhub.net/api/tools/{id}/unarchive
+```
+
+- **Admin only.** Restores the tool. Sharing is NOT automatically restored — set it again if needed.
+
+**Browse with archived tools (admin only):**
+```
+GET https://www.theforkhub.net/api/tools?include_archived=true
 ```
 
 ---

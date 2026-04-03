@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get("sort") ?? "newest"
   const minVersion = searchParams.get("min_version") ? parseInt(searchParams.get("min_version")!, 10) : null
   const exactVersion = searchParams.get("exact_version") ? parseInt(searchParams.get("exact_version")!, 10) : null
+  // include_archived=true is admin-only — exposes tools where archived_at IS NOT NULL
+  const includeArchived = searchParams.get("include_archived") === "true" && auth.user.role === "admin"
 
   // When there's a query, use the search_tools RPC for ilike + trigram similarity ordering
   if (q) {
@@ -41,17 +43,30 @@ export async function GET(request: NextRequest) {
         ...tool,
         creator: { name: creator_name, avatar_url: creator_avatar_url },
       }))
+
+      // The search_tools RPC doesn't filter archived_at — post-filter here.
+      // Secondary query is cheap (PK lookup) and archived tools are rare.
+      if (!includeArchived && tools.length > 0) {
+        const rpcIds = tools.map((t: { id: string }) => t.id)
+        const { data: archivedCheck } = await supabaseServer
+          .from("tools").select("id").in("id", rpcIds).not("archived_at", "is", null)
+        if (archivedCheck && archivedCheck.length > 0) {
+          const archivedSet = new Set(archivedCheck.map((r) => r.id))
+          tools = tools.filter((t: { id: string }) => !archivedSet.has(t.id))
+        }
+      }
     }
 
     // Fallback: if trigram RPC errored or returned nothing, try a broader ilike search
     if (tools.length === 0) {
       let fallback = supabaseServer
         .from("tools")
-        .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, creator:users!creator_id(name, avatar_url)")
+        .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, archived_at, creator:users!creator_id(name, avatar_url)")
         .eq("org_id", auth.user.orgId)
         .eq("status", status)
         .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
 
+      if (!includeArchived) fallback = fallback.is("archived_at", null)
       if (category) fallback = fallback.eq("category", category)
       if (classification) fallback = fallback.eq("classification", classification)
       if (fileType) fallback = fallback.eq("file_type", fileType)
@@ -70,10 +85,11 @@ export async function GET(request: NextRequest) {
   // No query — standard filtered query
   let query = supabaseServer
     .from("tools")
-    .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, creator:users!creator_id(name, avatar_url)")
+    .select("id, title, description, category, classification, file_type, fork_count, rating_avg, rating_count, version_number, parent_tool_id, creator_id, created_at, archived_at, creator:users!creator_id(name, avatar_url)")
     .eq("org_id", auth.user.orgId)
     .eq("status", status)
 
+  if (!includeArchived) query = query.is("archived_at", null)
   if (category) query = query.eq("category", category)
   if (classification) query = query.eq("classification", classification)
   if (fileType) query = query.eq("file_type", fileType)

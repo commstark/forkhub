@@ -12,7 +12,7 @@ export async function GET(
 
   const { data: tools, error } = await supabaseServer
     .from("tools")
-    .select("id, title, description, category, classification, status, file_type, version_number, fork_count, rating_avg, rating_count, parent_tool_id, created_at")
+    .select("id, title, description, category, classification, status, file_type, version_number, fork_count, rating_avg, rating_count, parent_tool_id, created_at, archived_at")
     .eq("creator_id", params.id)
     .eq("org_id", auth.user.orgId)
     .order("created_at", { ascending: false })

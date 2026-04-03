@@ -14,7 +14,7 @@ npm run build
 
 The server requires two environment variables:
 
-- **`FORKHUB_API_URL`** — Base URL of your ForkHub instance (e.g., `https://forkhub.vercel.app`)
+- **`FORKHUB_API_URL`** — Base URL of your ForkHub instance (e.g., `https://www.theforkhub.net`)
 - **`FORKHUB_API_KEY`** — Your API key (starts with `sk_fh_...`)
 
 ## Add to Claude Code
@@ -34,7 +34,7 @@ Then set your environment variables. You can add them to your `.claude/settings.
       "command": "node",
       "args": ["/absolute/path/to/forkhub/mcp-server/dist/index.js"],
       "env": {
-        "FORKHUB_API_URL": "https://forkhub.vercel.app",
+        "FORKHUB_API_URL": "https://www.theforkhub.net",
         "FORKHUB_API_KEY": "sk_fh_your_key_here"
       }
     }

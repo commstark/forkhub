@@ -42,7 +42,7 @@ export async function PATCH(
 
   const { data: tool, error: fetchError } = await supabaseServer
     .from("tools")
-    .select("id, creator_id, status, title, description, category, org_id")
+    .select("id, creator_id, status, archived_at, title, description, category, org_id")
     .eq("id", params.id)
     .eq("org_id", auth.user.orgId)
     .single()
@@ -53,6 +53,13 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Only the tool creator or an admin can update metadata" },
       { status: 403 }
+    )
+  }
+
+  if (tool.archived_at) {
+    return NextResponse.json(
+      { error: "Archived tools cannot be edited — unarchive first" },
+      { status: 422 }
     )
   }
 

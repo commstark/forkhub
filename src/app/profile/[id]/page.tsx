@@ -25,6 +25,7 @@ type Tool = {
   parent_tool_id: string | null
   parent: { id: string; version_number: number; creator: { name: string } | null } | null
   status: string; created_at: string; review_id?: string | null
+  archived_at?: string | null
 }
 
 function classificationClass(c: string) {
@@ -175,6 +176,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
   const [inReview, setInReview]   = useState<Tool[]>([])
   const [drafts, setDrafts]       = useState<Tool[]>([])
   const [rejected, setRejected]   = useState<Tool[]>([])
+  const [archived, setArchived]   = useState<Tool[]>([])
   const [loading, setLoading]     = useState(true)
   const [notFound, setNotFound]   = useState(false)
 
@@ -252,12 +254,15 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
       const uploadsData = await fetch(`/api/users/${params.id}/tools`).then((r) => r.json())
       const tools: Tool[] = Array.isArray(uploadsData) ? uploadsData : []
-      const approved = tools.filter((t) => t.status === "approved")
+      const archivedList  = tools.filter((t) => !!t.archived_at)
+      const archivedIds   = new Set(archivedList.map((t) => t.id))
+      const approved      = tools.filter((t) => t.status === "approved" && !archivedIds.has(t.id))
+      setArchived(archivedList)
       setOriginals(approved.filter((t) => !t.parent_tool_id))
       setForks(approved.filter((t) => !!t.parent_tool_id))
-      setInReview(tools.filter((t) => t.status === "in_review" || t.status === "changes_requested"))
-      setDrafts(tools.filter((t) => t.status === "draft"))
-      setRejected(tools.filter((t) => t.status === "rejected"))
+      setInReview(tools.filter((t) => (t.status === "in_review" || t.status === "changes_requested") && !archivedIds.has(t.id)))
+      setDrafts(tools.filter((t) => t.status === "draft" && !archivedIds.has(t.id)))
+      setRejected(tools.filter((t) => t.status === "rejected" && !archivedIds.has(t.id)))
       setLoading(false)
     }
     load()
@@ -428,6 +433,38 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
           ) : (
             <div className="stack">
               {rejected.map((tool) => <PendingCard key={tool.id} tool={tool} />)}
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
+
+      {/* Archived — own profile only */}
+      {(archived.length > 0 || isOwn) && (
+        <CollapsibleSection
+          id="archived"
+          title="Archived"
+          count={archived.length}
+          open={openSections.has("archived")}
+          onToggle={() => toggleSection("archived")}
+        >
+          {archived.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-3)" }}>No archived tools.</p>
+          ) : (
+            <div className="stack">
+              {archived.map((tool) => (
+                <div key={tool.id} className="card card-pad-sm flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span style={{ fontWeight: 500, color: "var(--text-1)", fontSize: 13 }}>{tool.title}</span>
+                    <span className="ver-pill ml-2">V{tool.version_number ?? 1}</span>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                      Archived {new Date(tool.archived_at!).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <span className={`badge ${classificationClass(tool.classification)}`}>
+                    {tool.classification.replace(/_/g, " ")}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </CollapsibleSection>

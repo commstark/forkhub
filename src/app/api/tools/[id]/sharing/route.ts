@@ -42,7 +42,7 @@ export async function POST(
 
   const { data: tool, error } = await supabaseServer
     .from("tools")
-    .select("id, creator_id, status, sharing, org_id")
+    .select("id, creator_id, status, archived_at, sharing, org_id")
     .eq("id", params.id)
     .eq("org_id", auth.user.orgId)
     .single()
@@ -53,6 +53,13 @@ export async function POST(
     return NextResponse.json(
       { error: "Only the tool creator or an admin can change sharing" },
       { status: 403 }
+    )
+  }
+
+  if (tool.archived_at) {
+    return NextResponse.json(
+      { error: "Archived tools cannot have their sharing mode changed" },
+      { status: 422 }
     )
   }
 

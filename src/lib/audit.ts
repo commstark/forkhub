@@ -14,6 +14,8 @@ type AuditAction =
   | "tool.resubmitted"
   | "tool.metadata_updated"
   | "tool.sharing_changed"
+  | "tool.archived"
+  | "tool.unarchived"
   | "user.role_changed"
   | "review.completed"
   | "org.settings_updated"
