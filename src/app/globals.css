@@ -205,6 +205,21 @@ a { color: inherit; }
   transition: color var(--t);
 }
 .nav-btn:hover { color: var(--text-primary); }
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  font-family: var(--font-sans);
+  transition: color var(--t);
+}
+.nav-toggle:hover { color: var(--text-primary); }
 
 /* ─── Typography ─────────────────────────────────────────────────────────── */
 .page-title {
@@ -1036,6 +1051,19 @@ a { color: inherit; }
 @media (max-width: 1199px) {
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sdoc-controls-grid { grid-template-columns: 1fr; }
+  .nav-inner { flex-wrap: wrap; gap: 6px; padding: 10px 16px; }
+  .nav-brand { flex: 1; min-width: 0; }
+  .nav-brand-tagline { display: none; }
+  .nav-toggle { display: flex; }
+  .nav-links {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-default);
+  }
+  .nav-links.open { display: flex; }
 }
 @media (max-width: 767px) {
   .grid-3 { grid-template-columns: minmax(0, 1fr); }
@@ -1046,7 +1074,6 @@ a { color: inherit; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
   .stat-cell:nth-child(2) { border-right: none; }
   .stat-cell:nth-child(n+3) { border-top: 1px solid var(--border-default); }
-  .nav-links { gap: 12px; }
   .sdoc-field { grid-template-columns: 1fr; gap: 2px; }
   .list-view-row,
   .list-view-header { grid-template-columns: 1fr 40px 100px; }
