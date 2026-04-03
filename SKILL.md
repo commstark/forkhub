@@ -226,27 +226,39 @@ Approved tools can be served live at a shareable URL — full-screen, no ForkHub
 | `link` | Anyone with the URL — no login needed |
 | `public` | Same as link (future: publicly listed) |
 
-### Enable sharing:
+### Classification determines sharing eligibility
+
+| Classification | Shareable link allowed? | On approval |
+|---|---|---|
+| `external_customer` | Yes | **Auto-set to `link`** — live URL works immediately |
+| `internal_customer` | No — private only | Stays private |
+| `internal_noncustomer` | No — private only | Stays private |
+
+**`external_customer` tools are automatically set to `sharing: link` when their review is finally approved.** No separate step needed — approval means cleared for external sharing.
+
+**Internal tools (`internal_customer`, `internal_noncustomer`) cannot be set to `link` or `public`.** Calling `POST .../sharing` with `mode: link` on an internal tool returns a 422 error: `"Only external_customer tools can have shareable links"`. Org members access internal tools through browse while logged in.
+
+### Override sharing on an external tool:
 ```
 POST https://www.theforkhub.net/api/tools/{id}/sharing
-Body: {"mode": "link"}
+Body: {"mode": "private"}   ← revoke the link
+Body: {"mode": "link"}      ← re-enable (external_customer only)
 ```
 
-Only the tool creator or admin can change sharing. Tool must be approved.
+Only the tool creator or admin can change sharing. Tool must be approved and not archived.
 
 ### Share with a customer:
-1. Tool gets approved
-2. Set sharing to link: `POST https://www.theforkhub.net/api/tools/{id}/sharing` with `{"mode": "link"}`
+1. Submit tool as `external_customer`
+2. Tool gets approved → sharing auto-set to `link`
 3. Share the URL: `https://www.theforkhub.net/live/[tool-id]`
 4. Customer clicks → tool runs full-screen, no login needed
 5. Customer cannot see or access any other tools (UUIDs are unguessable)
 
 ### Fork-and-share flow (most common):
-1. Fork a tool with customer-specific changes (branding, config)
-2. Fork gets approved (or auto-approved if minor)
-3. Set sharing to link on the fork
-4. Share the fork's live URL with the customer
-5. Original tool's sharing is unaffected
+1. Fork a tool with customer-specific changes (branding, config) — use `external_customer`
+2. Fork gets approved → sharing auto-set to `link`
+3. Share the fork's live URL with the customer
+4. Original tool's sharing is unaffected
 
 ---
 

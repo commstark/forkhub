@@ -166,11 +166,18 @@ export async function POST(
   }
 
   // Final approval — last stage cleared (or no pipeline configured)
+  // external_customer tools are automatically shared via link so the live URL works immediately.
+  // internal_customer and internal_noncustomer tools stay private — org members access via browse.
+  const toolUpdate: Record<string, unknown> = { status: "approved", updated_at: now }
+  if (t?.classification === "external_customer") {
+    toolUpdate.sharing = "link"
+  }
+
   await Promise.all([
     supabaseServer.from("reviews").update({
       status: "approved", notes, reviewer_id: auth.user.id, reviewed_at: now,
     }).eq("id", params.id),
-    supabaseServer.from("tools").update({ status: "approved", updated_at: now }).eq("id", review.tool_id),
+    supabaseServer.from("tools").update(toolUpdate).eq("id", review.tool_id),
   ])
 
   await writeAuditLog({
@@ -189,7 +196,7 @@ export async function POST(
     try {
       const { data: toolRecord } = await supabaseServer
         .from("tools")
-        .select("creator_id, sharing")
+        .select("creator_id")
         .eq("id", review.tool_id)
         .single()
       if (toolRecord?.creator_id) {
@@ -199,9 +206,10 @@ export async function POST(
           .eq("id", toolRecord.creator_id)
           .single()
         if (creatorUser?.email) {
-          const base = process.env.NEXTAUTH_URL ?? ""
+          const base    = process.env.NEXTAUTH_URL ?? ""
           const toolUrl = `${base}/tool/${review.tool_id}`
-          const liveUrl = toolRecord.sharing === "link" ? `${base}/live/${review.tool_id}` : null
+          // Live URL is available iff external_customer (sharing was just set to "link")
+          const liveUrl = t?.classification === "external_customer" ? `${base}/live/${review.tool_id}` : null
           sendEmail(
             creatorUser.email,
             `[ForkHub] ✓ ${t?.title ?? "Your tool"} is approved`,

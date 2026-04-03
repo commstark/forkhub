@@ -42,7 +42,7 @@ export async function POST(
 
   const { data: tool, error } = await supabaseServer
     .from("tools")
-    .select("id, creator_id, status, archived_at, sharing, org_id")
+    .select("id, creator_id, status, archived_at, classification, sharing, org_id")
     .eq("id", params.id)
     .eq("org_id", auth.user.orgId)
     .single()
@@ -59,6 +59,14 @@ export async function POST(
   if (tool.archived_at) {
     return NextResponse.json(
       { error: "Archived tools cannot have their sharing mode changed" },
+      { status: 422 }
+    )
+  }
+
+  if (mode !== "private" &&
+      (tool.classification === "internal_noncustomer" || tool.classification === "internal_customer")) {
+    return NextResponse.json(
+      { error: "Only external_customer tools can have shareable links" },
       { status: 422 }
     )
   }
